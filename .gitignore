@@ -2,6 +2,8 @@
 
 .pytest_cache
 venv
+.venv
+.venv-*
 .idea
 config.yml
 .pypirc
