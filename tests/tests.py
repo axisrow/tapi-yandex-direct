@@ -161,7 +161,7 @@ def test_advideos_get():
     result = client.advideos().post(
         data={
             "method": "get",
-            "params": {"FieldNames": ["Id", "Name"]},
+            "params": {"SelectionCriteria": {"Ids": ["123"]}, "FieldNames": ["Id", "Status"]},
         }
     )
     assert result.data == {"result": {"AdVideos": []}}
