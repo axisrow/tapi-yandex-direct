@@ -37,6 +37,7 @@ RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
         "/json/v5/audiencetargets": "AudienceTargets",
         "/json/v5/creatives": "Creatives",
         "/json/v5/adimages": "AdImages",
+        "/json/v5/advideos": "AdVideos",
         "/json/v5/vcards": "VCards",
         "/json/v5/sitelinks": "SitelinksSets",
         "/json/v5/adextensions": "AdExtensions",

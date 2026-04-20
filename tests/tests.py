@@ -151,6 +151,24 @@ def test_iter_items():
 
 
 @responses.activate
+def test_advideos_get():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/advideos",
+        json={"result": {"AdVideos": []}},
+        status=200,
+    )
+    result = client.advideos().post(
+        data={
+            "method": "get",
+            "params": {"FieldNames": ["Id", "Name"]},
+        }
+    )
+    assert result.data == {"result": {"AdVideos": []}}
+    assert result().extract() == []
+
+
+@responses.activate
 def test_get_report():
     responses.add(
         responses.POST,
