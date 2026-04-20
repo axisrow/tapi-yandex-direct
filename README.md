@@ -5,6 +5,20 @@
 [![Downloads](https://pepy.tech/badge/tapi-yandex-direct)](https://pepy.tech/project/tapi-yandex-direct)
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
+## Python version support
+
+| Python | Installable | CI-tested | Notes |
+|--------|-------------|-----------|-------|
+| 3.9    | ✅ | ✅ | |
+| 3.10   | ✅ | ✅ | |
+| 3.11   | ✅ | ✅ | |
+| 3.12   | ✅ | ✅ | |
+| 3.13   | ✅ | ✅ | |
+| 3.14   | ✅ | ✅ | Pre-release, `allow-prereleases: true` required |
+| <3.9   | ❌ | ❌ | Not supported |
+
+`orjson` is installed without a version pin — pip selects a compatible release automatically based on the interpreter.
+
 ## Installation
 
 Prev version
