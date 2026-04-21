@@ -112,6 +112,10 @@ RESOURCE_MAPPING_V5 = {
         "resource": "json/v5/smartadtargets",
         "docs": "https://yandex.ru/dev/direct/doc/ru/smartadtargets/smartadtargets",
     },
+    "strategies": {
+        "resource": "json/v5/strategies",
+        "docs": "https://yandex.ru/dev/direct/doc/ru/ref-v5/strategies/strategies",
+    },
     "businesses": {
         "resource": "json/v5/businesses",
         "docs": "https://yandex.ru/dev/direct/doc/ru/businesses/businesses",
