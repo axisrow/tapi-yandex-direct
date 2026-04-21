@@ -247,3 +247,49 @@ def test_strategies_add():
     )
     assert result.data == {"result": {"AddResults": [{"Id": 42}]}}
     assert result().extract() == [{"Id": 42}]
+
+
+@responses.activate
+def test_agencyclients_add_passport_organization():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/agencyclients",
+        json={"result": {"AddResults": [{"Login": "org-login"}]}},
+        status=200,
+    )
+    result = client.agencyclients().post(
+        data={
+            "method": "addPassportOrganization",
+            "params": {
+                "Organization": {
+                    "Name": "OrgName",
+                    "Currency": "RUB",
+                }
+            },
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Login": "org-login"}]}}
+    assert result().extract() == [{"Login": "org-login"}]
+
+
+@responses.activate
+def test_agencyclients_add_passport_organization_member():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/agencyclients",
+        json={"result": {"AddResults": [{"Login": "member-login"}]}},
+        status=200,
+    )
+    result = client.agencyclients().post(
+        data={
+            "method": "addPassportOrganizationMember",
+            "params": {
+                "Member": {
+                    "PassportOrganizationLogin": "org-login",
+                    "Role": "CHIEF",
+                }
+            },
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Login": "member-login"}]}}
+    assert result().extract() == [{"Login": "member-login"}]
