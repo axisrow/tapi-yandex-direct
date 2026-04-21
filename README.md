@@ -103,6 +103,7 @@ print(dir(client))
     "retargeting",
     "sitelinks",
     "smartadtargets",
+    "strategies",
     "turbopages",
     "vcards",
 ]
