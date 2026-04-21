@@ -211,3 +211,39 @@ def test_get_report():
         {"col1": "value1", "col2": "value2"},
         {"col1": "value10", "col2": "value20"},
     ]
+
+
+@responses.activate
+def test_strategies_get():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/strategies",
+        json={"result": {"Strategies": []}},
+        status=200,
+    )
+    result = client.strategies().post(
+        data={
+            "method": "get",
+            "params": {"SelectionCriteria": {}, "FieldNames": ["Id", "Name"]},
+        }
+    )
+    assert result.data == {"result": {"Strategies": []}}
+    assert result().extract() == []
+
+
+@responses.activate
+def test_strategies_add():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/strategies",
+        json={"result": {"AddResults": [{"Id": 42}]}},
+        status=200,
+    )
+    result = client.strategies().post(
+        data={
+            "method": "add",
+            "params": {"Strategies": [{"Name": "s1", "Type": "MANUAL_CPC"}]},
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Id": 42}]}}
+    assert result().extract() == [{"Id": 42}]
