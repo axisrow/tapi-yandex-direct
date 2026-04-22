@@ -60,6 +60,10 @@ RESOURCE_MAPPING_V5 = {
         "resource": "json/v5/dynamictextadtargets",
         "docs": "https://yandex.ru/dev/direct/doc/ru/dynamictextadtargets/dynamictextadtargets",
     },
+    "dynamicfeedadtargets": {
+        "resource": "json/v5/dynamicfeedadtargets",
+        "docs": "https://yandex.ru/dev/direct/doc/ru/dynamicfeedadtargets/dynamicfeedadtargets",
+    },
     "keywordbids": {
         "resource": "json/v5/keywordbids",
         "docs": "https://yandex.ru/dev/direct/doc/ru/keywordbids/keywordbids",

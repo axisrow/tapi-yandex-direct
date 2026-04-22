@@ -52,6 +52,7 @@ RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
         "/json/v5/clients": "Clients",
         "/json/v5/leads": "Leads",
         "/json/v5/dynamictextadtargets": "Webpages",
+        "/json/v5/dynamicfeedadtargets": "DynamicFeedAdTargets",
         "/json/v5/turbopages": "TurboPages",
         "/json/v5/negativekeywordsharedsets": "NegativeKeywordSharedSets",
         "/json/v5/feeds": "Feeds",

@@ -250,6 +250,42 @@ def test_strategies_add():
 
 
 @responses.activate
+def test_dynamicfeedadtargets_get():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/dynamicfeedadtargets",
+        json={"result": {"DynamicFeedAdTargets": []}},
+        status=200,
+    )
+    result = client.dynamicfeedadtargets().post(
+        data={
+            "method": "get",
+            "params": {"SelectionCriteria": {}, "FieldNames": ["Id", "Name"]},
+        }
+    )
+    assert result.data == {"result": {"DynamicFeedAdTargets": []}}
+    assert result().extract() == []
+
+
+@responses.activate
+def test_dynamicfeedadtargets_suspend():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/dynamicfeedadtargets",
+        json={"result": {"SuspendResults": [{"Id": 42}]}},
+        status=200,
+    )
+    result = client.dynamicfeedadtargets().post(
+        data={
+            "method": "suspend",
+            "params": {"SelectionCriteria": {"Ids": [42]}},
+        }
+    )
+    assert result.data == {"result": {"SuspendResults": [{"Id": 42}]}}
+    assert result().extract() == [{"Id": 42}]
+
+
+@responses.activate
 def test_agencyclients_add_passport_organization():
     responses.add(
         responses.POST,
