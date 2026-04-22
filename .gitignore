@@ -8,6 +8,7 @@ venv
 config.yml
 .pypirc
 .cache
+.claude/
 
 # C extensions
 *.so
