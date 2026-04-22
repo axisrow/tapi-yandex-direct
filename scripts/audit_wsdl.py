@@ -43,7 +43,7 @@ RESOURCE_CATALOG: dict[str, dict] = {
     "adimages":                {"endpoint": "adimages",               "type": "wsdl", "methods": {"get", "add", "delete"}},
     "advideos":                {"endpoint": "advideos",               "type": "wsdl", "methods": {"get", "add"}},
     "ads":                     {"endpoint": "ads",                    "type": "wsdl", "methods": {"get", "add", "update", "delete", "moderate", "suspend", "resume", "archive", "unarchive"}},
-    "agencyclients":           {"endpoint": "agencyclients",          "type": "wsdl", "methods": {"get", "add", "update"}},
+    "agencyclients":           {"endpoint": "agencyclients",          "type": "wsdl", "methods": {"get", "add", "update", "addPassportOrganization", "addPassportOrganizationMember"}},
     "audiencetargets":         {"endpoint": "audiencetargets",        "type": "wsdl", "methods": {"get", "add", "delete", "suspend", "resume", "setBids"}},
     "bidmodifiers":            {"endpoint": "bidmodifiers",           "type": "wsdl", "methods": {"get", "add", "set", "delete"}},
     "bids":                    {"endpoint": "bids",                   "type": "wsdl", "methods": {"get", "set", "setAuto"}},
@@ -63,6 +63,7 @@ RESOURCE_CATALOG: dict[str, dict] = {
     "retargeting":             {"endpoint": "retargetinglists",       "type": "wsdl", "methods": {"get", "add", "update", "delete"}},
     "sitelinks":               {"endpoint": "sitelinks",              "type": "wsdl", "methods": {"get", "add", "delete"}},
     "smartadtargets":          {"endpoint": "smartadtargets",         "type": "wsdl", "methods": {"get", "add", "update", "delete", "suspend", "resume", "setBids"}},
+    "strategies":              {"endpoint": "strategies",             "type": "wsdl", "methods": {"get", "add", "update", "archive", "unarchive"}},
     "turbopages":              {"endpoint": "turbopages",             "type": "wsdl", "methods": {"get"}},
     "vcards":                  {"endpoint": "vcards",                 "type": "wsdl", "methods": {"get", "add", "delete"}},
     # Non-WSDL resources
@@ -77,6 +78,12 @@ WSDL_RESOURCES = {
 
 # Fallback service list if GitHub API is unavailable
 FALLBACK_SERVICES = sorted(info["endpoint"] for info in WSDL_RESOURCES.values())
+
+# Method names that look like operations but are actually enum values
+# or parameter-driven behaviors — do not flag as "missing".
+KNOWN_NON_WSDL_METHODS: dict[str, set[str]] = {
+    "dictionaries": {"getGeoRegions"},
+}
 
 
 def discover_services_from_github() -> list[str]:
@@ -189,7 +196,8 @@ def build_report(
             lib_name = None
             lib_methods = set()
 
-        missing_methods = wsdl_ops - lib_methods if available else set()
+        pseudo = KNOWN_NON_WSDL_METHODS.get(lib_name, set()) if lib_name else set()
+        missing_methods = (wsdl_ops - lib_methods - pseudo) if available else set()
         extra_methods = lib_methods - wsdl_ops if available else set()
         status = "ok" if available and not missing_methods else ("no_wsdl" if not available else "gap")
 
