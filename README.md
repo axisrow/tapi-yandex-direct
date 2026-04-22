@@ -1,9 +1,23 @@
 # Python client for [API Yandex Direct](https://yandex.ru/dev/metrika/doc/api2/concept/about-docpage/)
 
-![Supported Python Versions](https://img.shields.io/static/v1?label=python&message=>=3.6&color=green)
+![Supported Python Versions](https://img.shields.io/static/v1?label=python&message=>=3.9&color=green)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/vintasoftware/tapioca-wrapper/master/LICENSE)
 [![Downloads](https://pepy.tech/badge/tapi-yandex-direct)](https://pepy.tech/project/tapi-yandex-direct)
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+
+## Python version support
+
+| Python | Installable | CI-tested | Notes |
+|--------|-------------|-----------|-------|
+| 3.9    | ✅ | ✅ | |
+| 3.10   | ✅ | ✅ | |
+| 3.11   | ✅ | ✅ | |
+| 3.12   | ✅ | ✅ | |
+| 3.13   | ✅ | ✅ | |
+| 3.14   | ✅ | ✅ | Pre-release, `allow-prereleases: true` required |
+| <3.9   | ❌ | ❌ | Not supported |
+
+`orjson` is installed without a version pin — pip selects a compatible release automatically based on the interpreter.
 
 ## Installation
 
@@ -89,6 +103,7 @@ print(dir(client))
     "retargeting",
     "sitelinks",
     "smartadtargets",
+    "strategies",
     "turbopages",
     "vcards",
 ]

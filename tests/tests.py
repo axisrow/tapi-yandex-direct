@@ -151,6 +151,24 @@ def test_iter_items():
 
 
 @responses.activate
+def test_advideos_get():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/advideos",
+        json={"result": {"AdVideos": []}},
+        status=200,
+    )
+    result = client.advideos().post(
+        data={
+            "method": "get",
+            "params": {"SelectionCriteria": {"Ids": ["123"]}, "FieldNames": ["Id", "Status"]},
+        }
+    )
+    assert result.data == {"result": {"AdVideos": []}}
+    assert result().extract() == []
+
+
+@responses.activate
 def test_get_report():
     responses.add(
         responses.POST,
@@ -193,3 +211,85 @@ def test_get_report():
         {"col1": "value1", "col2": "value2"},
         {"col1": "value10", "col2": "value20"},
     ]
+
+
+@responses.activate
+def test_strategies_get():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/strategies",
+        json={"result": {"Strategies": []}},
+        status=200,
+    )
+    result = client.strategies().post(
+        data={
+            "method": "get",
+            "params": {"SelectionCriteria": {}, "FieldNames": ["Id", "Name"]},
+        }
+    )
+    assert result.data == {"result": {"Strategies": []}}
+    assert result().extract() == []
+
+
+@responses.activate
+def test_strategies_add():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/strategies",
+        json={"result": {"AddResults": [{"Id": 42}]}},
+        status=200,
+    )
+    result = client.strategies().post(
+        data={
+            "method": "add",
+            "params": {"Strategies": [{"Name": "s1", "Type": "MANUAL_CPC"}]},
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Id": 42}]}}
+    assert result().extract() == [{"Id": 42}]
+
+
+@responses.activate
+def test_agencyclients_add_passport_organization():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/agencyclients",
+        json={"result": {"AddResults": [{"Login": "org-login"}]}},
+        status=200,
+    )
+    result = client.agencyclients().post(
+        data={
+            "method": "addPassportOrganization",
+            "params": {
+                "Organization": {
+                    "Name": "OrgName",
+                    "Currency": "RUB",
+                }
+            },
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Login": "org-login"}]}}
+    assert result().extract() == [{"Login": "org-login"}]
+
+
+@responses.activate
+def test_agencyclients_add_passport_organization_member():
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/agencyclients",
+        json={"result": {"AddResults": [{"Login": "member-login"}]}},
+        status=200,
+    )
+    result = client.agencyclients().post(
+        data={
+            "method": "addPassportOrganizationMember",
+            "params": {
+                "Member": {
+                    "PassportOrganizationLogin": "org-login",
+                    "Role": "CHIEF",
+                }
+            },
+        }
+    )
+    assert result.data == {"result": {"AddResults": [{"Login": "member-login"}]}}
+    assert result().extract() == [{"Login": "member-login"}]

@@ -30,6 +30,8 @@ RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
     "checkCampaigns": "Campaigns",
     "check": "Modified",
     "HasSearchVolumeResults": "HasSearchVolumeResults",
+    "addPassportOrganization": "AddResults",
+    "addPassportOrganizationMember": "AddResults",
     "get": {
         "/json/v5/campaigns": "Campaigns",
         "/json/v5/adgroups": "AdGroups",
@@ -37,6 +39,7 @@ RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
         "/json/v5/audiencetargets": "AudienceTargets",
         "/json/v5/creatives": "Creatives",
         "/json/v5/adimages": "AdImages",
+        "/json/v5/advideos": "AdVideos",
         "/json/v5/vcards": "VCards",
         "/json/v5/sitelinks": "SitelinksSets",
         "/json/v5/adextensions": "AdExtensions",
@@ -53,6 +56,7 @@ RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
         "/json/v5/negativekeywordsharedsets": "NegativeKeywordSharedSets",
         "/json/v5/feeds": "Feeds",
         "/json/v5/smartadtargets": "SmartAdTargets",
+        "/json/v5/strategies": "Strategies",
         "/json/v5/businesses": "Businesses",
     },
 }
