@@ -12,8 +12,10 @@ Usage:
 """
 
 import argparse
+import os
 import subprocess
 import sys
+import tempfile
 from datetime import date
 from xml.etree import ElementTree as ET
 
@@ -79,18 +81,24 @@ FALLBACK_SERVICES = sorted(info["endpoint"] for info in WSDL_RESOURCES.values())
 
 def discover_services_from_github() -> list[str]:
     """Get list of all v5 API services from dragonsigh/yandex-direct-api-docs repo structure."""
-    print(f"Fetching service list from GitHub: {GITHUB_API_URL} ...")
+    print(f"Fetching service list from GitHub: {GITHUB_API_URL} ...", file=sys.stderr)
     try:
         resp = requests.get(
             GITHUB_API_URL,
             headers={"Accept": "application/vnd.github+json"},
             timeout=15,
         )
+        if resp.status_code == 403:
+            print("  Warning: GitHub API returned 403 (rate limit exceeded). Using fallback service list.", file=sys.stderr)
+            return FALLBACK_SERVICES
+        if resp.status_code == 429:
+            print("  Warning: GitHub API returned 429 (too many requests). Using fallback service list.", file=sys.stderr)
+            return FALLBACK_SERVICES
         resp.raise_for_status()
         entries = resp.json()
     except requests.RequestException as e:
-        print(f"  Warning: could not fetch GitHub API: {e}")
-        print("  Using fallback service list.")
+        print(f"  Warning: could not fetch GitHub API: {e}", file=sys.stderr)
+        print("  Using fallback service list.", file=sys.stderr)
         return FALLBACK_SERVICES
 
     services = sorted(
@@ -100,10 +108,10 @@ def discover_services_from_github() -> list[str]:
     )
 
     if not services:
-        print("  Warning: no service directories found. Using fallback list.")
+        print("  Warning: no service directories found. Using fallback list.", file=sys.stderr)
         return FALLBACK_SERVICES
 
-    print(f"  Found {len(services)} services: {', '.join(services)}")
+    print(f"  Found {len(services)} services: {', '.join(services)}", file=sys.stderr)
     return services
 
 
@@ -113,19 +121,19 @@ def fetch_wsdl_operations(service: str) -> tuple[set[str], bool]:
     try:
         resp = requests.get(url, timeout=15)
     except requests.RequestException as e:
-        print(f"  [{service}] Request error: {e}")
+        print(f"  [{service}] Request error: {e}", file=sys.stderr)
         return set(), False
 
     if resp.status_code == 404:
         return set(), False
     if not resp.ok:
-        print(f"  [{service}] HTTP {resp.status_code}")
+        print(f"  [{service}] HTTP {resp.status_code}", file=sys.stderr)
         return set(), False
 
     try:
         root = ET.fromstring(resp.content)
     except ET.ParseError as e:
-        print(f"  [{service}] XML parse error: {e}")
+        print(f"  [{service}] XML parse error: {e}", file=sys.stderr)
         return set(), False
 
     operations: set[str] = set()
@@ -213,8 +221,8 @@ def build_report(
         "",
         "## Summary",
         "",
-        f"| Category | Count |",
-        f"|---|---|",
+        "| Category | Count |",
+        "|---|---|",
         f"| Total resources in `resource_mapping.py` | {n_total_lib} |",
         f"| — SOAP/WSDL services | {n_wsdl_lib} |",
         f"| — Reports API (non-SOAP) | {n_reports} |",
@@ -237,7 +245,7 @@ def build_report(
     for i, (name, info) in enumerate(
         ((n, i) for n, i in RESOURCE_CATALOG.items() if i["type"] != "wsdl"), start=1
     ):
-        type_label = {"reports": "Reports API (TSV, async)", "oauth": "OAuth helper"}[info["type"]]
+        type_label = {"reports": "Reports API (TSV, async)", "oauth": "OAuth helper"}.get(info["type"], info["type"])
         lines.append(f"{i}. **{name}** (`{info['endpoint']}`) — {type_label}")
     lines.append("")
 
@@ -299,18 +307,25 @@ def create_github_issue(report: str) -> None:
     today = date.today().isoformat()
     title = f"WSDL Audit: API coverage gaps {today}"
 
+    tmp_path = None
     try:
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as tmp:
+            tmp.write(report)
+            tmp_path = tmp.name
         result = subprocess.run(
-            ["gh", "issue", "create", "--title", title, "--body", report],
+            ["gh", "issue", "create", "--title", title, "--body-file", tmp_path],
             capture_output=True, text=True, check=True,
         )
-        print(f"\nGitHub issue created: {result.stdout.strip()}")
+        print(f"\nGitHub issue created: {result.stdout.strip()}", file=sys.stderr)
     except FileNotFoundError:
-        print("\nError: 'gh' CLI not found. Install it from https://cli.github.com/")
+        print("\nError: 'gh' CLI not found. Install it from https://cli.github.com/", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"\nError creating GitHub issue:\n{e.stderr}")
+        print(f"\nError creating GitHub issue:\n{e.stderr}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        if tmp_path:
+            os.unlink(tmp_path)
 
 
 def main() -> None:
@@ -328,7 +343,7 @@ def main() -> None:
     all_services = sorted(set(api_services) | library_endpoints)
 
     wsdl_results: dict[str, tuple[set[str], bool]] = {}
-    print(f"\nFetching WSDL for {len(all_services)} services...")
+    print(f"\nFetching WSDL for {len(all_services)} services...", file=sys.stderr)
     for service in all_services:
         ops, available = fetch_wsdl_operations(service)
         wsdl_results[service] = (ops, available)
@@ -336,15 +351,15 @@ def main() -> None:
             f"{len(ops)} operations: {', '.join(sorted(ops))}"
             if available else "WSDL not available"
         )
-        print(f"  [{service}] {status}")
+        print(f"  [{service}] {status}", file=sys.stderr)
 
-    print("\nBuilding report...")
+    print("\nBuilding report...", file=sys.stderr)
     report = build_report(api_services, wsdl_results)
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(report)
-        print(f"Report saved to {args.output}")
+        print(f"Report saved to {args.output}", file=sys.stderr)
     else:
         print(report)
 
