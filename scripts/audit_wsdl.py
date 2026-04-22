@@ -346,7 +346,15 @@ def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[Discover
     if not services:
         raise RuntimeError("Could not discover services from official Yandex docs: no WSDL URLs found")
 
-    return services
+    # Deduplicate by (version, endpoint), keeping the first occurrence (canonical page)
+    seen: set[tuple[str, str]] = set()
+    deduped: list[DiscoveredService] = []
+    for svc in services:
+        key = (svc.version, svc.endpoint)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(svc)
+    return deduped
 
 
 def discover_v4_methods_from_docs(base_url: str, timeout: int) -> list[LegacyMethod]:
