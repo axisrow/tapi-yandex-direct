@@ -458,7 +458,7 @@ def _coverage_rows(
 
         pseudo = KNOWN_NON_WSDL_METHODS.get(lib_name, set()) if lib_name else set()
         missing_methods = official_methods - lib_methods - pseudo
-        extra_methods = lib_methods - official_methods if official_methods else set()
+        extra_methods = lib_methods - official_methods if available else set()
         doc_wsdl_mismatch = service.methods ^ wsdl_ops if service and available else set()
 
         rows.append({
