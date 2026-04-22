@@ -19,6 +19,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections import deque
 from datetime import date
 from html.parser import HTMLParser
 from typing import NamedTuple
@@ -318,12 +319,12 @@ def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[Discover
 
     print(f"  Found {len(service_links)} seed service page(s).", file=sys.stderr)
     services: list[DiscoveredService] = []
-    queued = list(service_links)
+    queued = deque(service_links)
     seen_links = set(service_links)
     processed_links: set[str] = set()
 
     while queued:
-        link = queued.pop(0)
+        link = queued.popleft()
         if link in processed_links:
             continue
         processed_links.add(link)
@@ -612,7 +613,7 @@ def create_github_issue(report: str) -> None:
             tmp_path = tmp.name
         result = subprocess.run(
             ["gh", "issue", "create", "--title", title, "--body-file", tmp_path],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, check=True, timeout=60,
         )
         print(f"\nGitHub issue created: {result.stdout.strip()}", file=sys.stderr)
     except FileNotFoundError:
@@ -621,9 +622,15 @@ def create_github_issue(report: str) -> None:
     except subprocess.CalledProcessError as e:
         print(f"\nError creating GitHub issue:\n{e.stderr}", file=sys.stderr)
         sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("\nError: gh CLI timed out after 60 seconds.", file=sys.stderr)
+        sys.exit(1)
     finally:
         if tmp_path:
-            os.unlink(tmp_path)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def main() -> None:
@@ -661,15 +668,18 @@ def main() -> None:
         legacy_methods = discover_v4_methods_from_docs(args.v4_docs_base_url, args.timeout)
 
     wsdl_results: dict[str, tuple[set[str], bool]] = {}
+    seen_wsdl: set[str] = set()
     print(f"\nFetching WSDL for {len(discovered_services)} official docs entries...", file=sys.stderr)
     for service in discovered_services:
-        ops, available = fetch_wsdl_operations(service.wsdl_url, args.timeout)
-        wsdl_results[service.wsdl_url] = (ops, available)
-        status = (
-            f"{len(ops)} operations: {', '.join(sorted(ops))}"
-            if available else "WSDL not available"
-        )
-        print(f"  [{service.version}/{service.endpoint}] {status}", file=sys.stderr)
+        if service.wsdl_url not in seen_wsdl:
+            seen_wsdl.add(service.wsdl_url)
+            ops, available = fetch_wsdl_operations(service.wsdl_url, args.timeout)
+            wsdl_results[service.wsdl_url] = (ops, available)
+            status = (
+                f"{len(ops)} operations: {', '.join(sorted(ops))}"
+                if available else "WSDL not available"
+            )
+            print(f"  [{service.version}/{service.endpoint}] {status}", file=sys.stderr)
 
     print("\nBuilding report...", file=sys.stderr)
     report = build_report(discovered_services, wsdl_results, legacy_methods)
