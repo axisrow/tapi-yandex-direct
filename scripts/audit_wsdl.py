@@ -689,6 +689,33 @@ def main() -> None:
             )
             print(f"  [{service.version}/{service.endpoint}] {status}", file=sys.stderr)
 
+    # Fallback: fetch WSDL for library resources not found in official docs
+    discovered_endpoints = {s.endpoint for s in discovered_services}
+    for version in requested_versions & {"v5", "v501"}:
+        for name, info in WSDL_RESOURCES.items():
+            endpoint = info["endpoint"]
+            if endpoint not in discovered_endpoints:
+                wsdl_url = f"https://api.direct.yandex.com/{version}/{endpoint}?wsdl"
+                if wsdl_url not in seen_wsdl:
+                    seen_wsdl.add(wsdl_url)
+                    ops, available = fetch_wsdl_operations(wsdl_url, args.timeout)
+                    wsdl_results[wsdl_url] = (ops, available)
+                    status = (
+                        f"{len(ops)} operations: {', '.join(sorted(ops))}"
+                        if available else "WSDL not available"
+                    )
+                    print(f"  [{version}/{endpoint}] (fallback) {status}", file=sys.stderr)
+                    discovered_services.append(DiscoveredService(
+                        version=version,
+                        name=name,
+                        endpoint=endpoint,
+                        docs_url="",
+                        methods=info["methods"],
+                        wsdl_url=wsdl_url,
+                        soap_url=f"https://api.direct.yandex.com/{version}/{endpoint}",
+                        json_url=f"https://api.direct.yandex.com/json/{version}/{endpoint}",
+                    ))
+
     print("\nBuilding report...", file=sys.stderr)
     report = build_report(discovered_services, wsdl_results, legacy_methods)
 
