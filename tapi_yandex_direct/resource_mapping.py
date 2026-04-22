@@ -114,7 +114,7 @@ RESOURCE_MAPPING_V5 = {
     },
     "strategies": {
         "resource": "json/v5/strategies",
-        "docs": "https://yandex.ru/dev/direct/doc/ru/ref-v5/strategies/strategies",
+        "docs": "https://yandex.ru/dev/direct/doc/ru/strategies/strategies",
     },
     "businesses": {
         "resource": "json/v5/businesses",
