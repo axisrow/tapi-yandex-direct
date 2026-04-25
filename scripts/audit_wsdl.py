@@ -135,11 +135,24 @@ class _LinkParser(HTMLParser):
 
 
 class _TextParser(HTMLParser):
+    _SKIP_TAGS = frozenset({"script", "style"})
+
     def __init__(self) -> None:
         super().__init__()
         self.parts: list[str] = []
+        self._skip: bool = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._SKIP_TAGS:
+            self._skip = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP_TAGS:
+            self._skip = False
 
     def handle_data(self, data: str) -> None:
+        if self._skip:
+            return
         text = " ".join(data.split())
         if text:
             self.parts.append(text)
@@ -305,7 +318,7 @@ def _get_text(url: str, timeout: int) -> str:
     return resp.text
 
 
-def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[DiscoveredService]:
+def discover_v5_services_from_docs(base_url: str, timeout: int, max_pages: int = 200) -> list[DiscoveredService]:
     """Load official Yandex docs and extract all versioned service records."""
     print(f"Fetching official Yandex Direct docs index: {base_url} ...", file=sys.stderr)
     try:
@@ -322,8 +335,17 @@ def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[Discover
     queued = deque(service_links)
     seen_links = set(service_links)
     processed_links: set[str] = set()
+    skipped_pages: int = 0
 
     while queued:
+        if len(processed_links) >= max_pages:
+            print(
+                f"  Warning: reached max_pages limit ({max_pages}), "
+                f"stopping crawl with {len(queued)} page(s) remaining.",
+                file=sys.stderr,
+            )
+            break
+
         link = queued.popleft()
         if link in processed_links:
             continue
@@ -331,7 +353,12 @@ def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[Discover
         try:
             page_html = _get_text(link, timeout)
         except requests.RequestException as e:
-            print(f"  Warning: could not fetch service page {link}: {e}", file=sys.stderr)
+            skipped_pages += 1
+            status_hint = ""
+            if isinstance(e, requests.HTTPError) and e.response is not None:
+                if e.response.status_code in (403, 429):
+                    status_hint = " (rate-limited)"
+            print(f"  Warning: could not fetch service page {link}{status_hint}: {e}", file=sys.stderr)
             continue
 
         for discovered_link in parse_v5_service_links(page_html, base_url):
@@ -342,6 +369,13 @@ def discover_v5_services_from_docs(base_url: str, timeout: int) -> list[Discover
         parsed = parse_v5_service_page(page_html, link)
         services.extend(parsed)
         print(f"  [{link}] {len(parsed)} WSDL URL(s)", file=sys.stderr)
+
+    if skipped_pages > 0:
+        print(
+            f"  WARNING: {skipped_pages} page(s) were skipped due to fetch errors "
+            f"(possibly rate-limited). Results may be incomplete.",
+            file=sys.stderr,
+        )
 
     if not services:
         raise RuntimeError("Could not discover services from official Yandex docs: no WSDL URLs found")
@@ -655,6 +689,8 @@ def main() -> None:
                         help="Official Yandex Direct v4 documentation base URL")
     parser.add_argument("--timeout", type=int, default=15,
                         help="HTTP timeout in seconds")
+    parser.add_argument("--max-pages", type=int, default=200,
+                        help="Maximum pages to crawl in BFS discovery (default: 200)")
     args = parser.parse_args()
 
     requested_versions = {version.strip() for version in args.versions.split(",") if version.strip()}
@@ -668,7 +704,7 @@ def main() -> None:
 
     if requested_versions & {"v5", "v501"}:
         discovered_services = [
-            service for service in discover_v5_services_from_docs(args.docs_base_url, args.timeout)
+            service for service in discover_v5_services_from_docs(args.docs_base_url, args.timeout, args.max_pages)
             if service.version in requested_versions
         ]
 
