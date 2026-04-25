@@ -106,7 +106,7 @@ RESOURCE_MAPPING_V5 = {
     },
     "debugtoken": {
         "resource": "oauth.yandex.ru/authorize?response_type=token&client_id={client_id}",
-        "docs": "https://yandex.ru/dev/direct/doc/ru/dg/concepts/auth-token",
+        "docs": "https://yandex.ru/dev/direct/doc/ru/concepts/auth-token",
     },
     "feeds": {
         "resource": "json/v5/feeds",
