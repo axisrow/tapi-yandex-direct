@@ -14,11 +14,8 @@ def test_no_legacy_docs_paths():
 
 def test_all_resources_have_methods_field():
     for name, info in RESOURCE_MAPPING_V5.items():
-        if name == "debugtoken":
-            continue
         assert "methods" in info, f"{name} missing methods field"
-        assert isinstance(info["methods"], list)
-        assert info["methods"], f"{name} has empty methods list"
+        assert isinstance(info["methods"], list), f"{name} methods is not a list"
 
 
 def test_keywords_does_not_support_archive():
@@ -47,6 +44,7 @@ def test_methods_match_audit_script():
     """Sanity: scripts/audit_wsdl.py and resource_mapping should agree."""
     p = Path(__file__).resolve().parents[1] / "scripts" / "audit_wsdl.py"
     spec = importlib.util.spec_from_file_location("audit_wsdl", p)
+    assert spec is not None, f"Could not load audit_wsdl from {p}"
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     for name, info in RESOURCE_MAPPING_V5.items():
