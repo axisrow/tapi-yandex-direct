@@ -44,6 +44,22 @@ Last version. Has backward incompatible changes.
 ## Documentation
 [Справка](https://yandex.ru/dev/direct/) Api Яндекс Директ
 
+### Supported methods per resource
+
+Not all resources support the full lifecycle. For example, `keywords` does NOT support `archive`/`unarchive` — only `campaigns`, `ads` and `strategies` support archival.
+
+Each resource entry in `RESOURCE_MAPPING_V5` exposes a `methods` list, and `reports` additionally exposes `docs_pages` for sub-page docs:
+
+```python
+from tapi_yandex_direct import RESOURCE_MAPPING_V5
+
+print(RESOURCE_MAPPING_V5["keywords"]["methods"])
+# ['get', 'add', 'update', 'delete', 'suspend', 'resume']
+
+print(RESOURCE_MAPPING_V5["reports"]["docs_pages"])
+# {'type': '...', 'period': '...', 'fields-list': '...', 'headers': '...'}
+```
+
 
 ### Client params
 ```python

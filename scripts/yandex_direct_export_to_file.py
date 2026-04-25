@@ -122,7 +122,7 @@ if __name__ == "__main__":
         "--token",
         required=True,
         type=str,
-        help="Access token, detail https://yandex.ru/dev/direct/doc/dg/concepts/auth-token.html",
+        help="Access token, detail https://yandex.ru/dev/direct/doc/ru/concepts/auth-token",
     )
     parser.add_argument(
         "--login",
@@ -143,8 +143,8 @@ if __name__ == "__main__":
         "--body_filepath",
         required=True,
         type=str,
-        help="Request body, detail https://yandex.ru/dev/direct/doc/dg/concepts/JSON.html#JSON__json-request "
-             "and https://yandex.ru/dev/direct/doc/reports/spec.html",
+        help="Request body, detail https://yandex.ru/dev/direct/doc/ru/concepts/JSON "
+             "and https://yandex.ru/dev/direct/doc/ru/spec",
     )
     parser.add_argument(
         "--filepath",
@@ -156,14 +156,14 @@ if __name__ == "__main__":
         "--use_operator_units",
         required=False,
         type=bool,
-        help="HTTP-header, detail https://yandex.ru/dev/direct/doc/reports/headers.html",
+        help="HTTP-header, detail https://yandex.ru/dev/direct/doc/ru/headers",
         default=False,
     )
     parser.add_argument(
         "--return_money_in_micros",
         required=False,
         type=bool,
-        help="HTTP-header, detail https://yandex.ru/dev/direct/doc/reports/headers.html",
+        help="HTTP-header, detail https://yandex.ru/dev/direct/doc/ru/headers",
         default=False,
     )
     parser.add_argument(
