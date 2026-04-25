@@ -48,8 +48,6 @@ def test_methods_match_audit_script():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     for name, info in RESOURCE_MAPPING_V5.items():
-        if name == "debugtoken":
-            continue
         if name not in mod.RESOURCE_CATALOG:
             continue
         assert set(info["methods"]) == set(mod.RESOURCE_CATALOG[name]["methods"]), (
