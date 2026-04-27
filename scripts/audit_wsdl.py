@@ -31,6 +31,10 @@ import requests
 DOCS_BASE_URL = "https://yandex.com/dev/direct/doc/en/"
 V4_DOCS_BASE_URL = "https://yandex.com/dev/direct/doc/dg-v4/en/"
 
+V4_WSDL_URL = "https://api.direct.yandex.ru/v4/wsdl/"
+V4_LIVE_WSDL_URL = "https://api.direct.yandex.ru/live/v4/wsdl/"
+V4_DOCS_BASE = "https://yandex.com/dev/direct/doc/dg-v4/en"
+
 WSDL_NS = "http://schemas.xmlsoap.org/wsdl/"
 SERVICE_LINK_RE = re.compile(r"/dev/direct/doc/en/([^/#?]+)/\1(?:[#?].*)?$")
 V4_METHOD_LINK_RE = re.compile(r"/dev/direct/doc/dg-v4/en/(?:reference|live)/([^/#?]+)")
@@ -77,9 +81,22 @@ RESOURCE_CATALOG: dict[str, dict] = {
     # Non-WSDL resources
     "reports":                 {"endpoint": "reports",                "type": "reports", "methods": {"get"}},
     "debugtoken":              {"endpoint": "debugtoken",             "type": "oauth",   "methods": set()},
+    # Legacy v4 / v4 Live — single monolithic WSDL each. Library does not implement v4 yet,
+    # so lib_methods = empty set. methods = filled at runtime from real WSDL operations.
+    "v4":     {"endpoint": "v4_monolithic",      "type": "wsdl_v4",     "methods": set(), "lib_methods": set()},
+    "v4live": {"endpoint": "v4_live_monolithic", "type": "wsdl_v4live", "methods": set(), "lib_methods": set()},
 }
 
+_WSDL_TYPES = frozenset({"wsdl", "wsdl_v4", "wsdl_v4live"})
+
 WSDL_RESOURCES = {
+    name: info for name, info in RESOURCE_CATALOG.items()
+    if info["type"] in _WSDL_TYPES
+}
+
+# Subset for v5/v501 fallback discovery — excludes v4 placeholders that have
+# their own monolithic WSDL discovery path (discover_v4_wsdl_services).
+V5_WSDL_RESOURCES = {
     name: info for name, info in RESOURCE_CATALOG.items()
     if info["type"] == "wsdl"
 }
@@ -89,6 +106,149 @@ WSDL_RESOURCES = {
 KNOWN_NON_WSDL_METHODS: dict[str, set[str]] = {
     "dictionaries": {"getGeoRegions"},
 }
+
+# v4 / v4 Live operation -> v5 equivalent (None means no analogue in v5).
+# A key being present at all means the method has been classified.
+# Methods absent from this map are reported as "unclassified" by classify_v4_method.
+V4_TO_V5_MAP: dict[str, str | None] = {
+    # Campaigns
+    "GetCampaignsList":       "campaigns.get",
+    "GetCampaignsListFilter": "campaigns.get",
+    "GetCampaignsParams":     "campaigns.get",
+    "GetCampaignParams":      "campaigns.get",
+    "CreateOrUpdateCampaign": "campaigns.add",
+    "ArchiveCampaign":        "campaigns.archive",
+    "UnArchiveCampaign":      "campaigns.unarchive",
+    "DeleteCampaign":         "campaigns.delete",
+    "ResumeCampaign":         "campaigns.resume",
+    "StopCampaign":           "campaigns.suspend",
+    # Banners (= ads in v5)
+    "GetBanners":             "ads.get",
+    "CreateOrUpdateBanners":  "ads.add",
+    "ArchiveBanners":         "ads.archive",
+    "UnArchiveBanners":       "ads.unarchive",
+    "DeleteBanners":          "ads.delete",
+    "ModerateBanners":        "ads.moderate",
+    "ResumeBanners":          "ads.resume",
+    "StopBanners":            "ads.suspend",
+    "GetBannerPhrases":       "keywords.get",
+    "GetBannerPhrasesFilter": "keywords.get",
+    "Keyword":                "keywords.add",
+    # Bids
+    "SetAutoPrice":           "keywordbids.setAuto",
+    "UpdatePrices":           "keywordbids.set",
+    # Retargeting
+    "Retargeting":            "retargeting.get",
+    "RetargetingCondition":   "retargeting.add",
+    # Clients
+    "GetClientInfo":          "clients.get",
+    "UpdateClientInfo":       "clients.update",
+    "GetClientsList":         "agencyclients.get",
+    "GetSubClients":          "agencyclients.get",
+    "CreateNewSubclient":     "agencyclients.add",
+    # Dictionaries
+    "GetRegions":             "dictionaries.get",
+    "GetRubrics":             "dictionaries.get",
+    "GetTimeZones":           "dictionaries.get",
+    # Changes
+    "GetChanges":             "changes.check",
+    # Reports / stats
+    "CreateNewReport":        "reports.get",
+    "GetReportList":          "reports.get",
+    "DeleteReport":           None,
+    "GetSummaryStat":         "reports.get",
+    "GetBannersStat":         "reports.get",
+    "CreateOfflineReport":    "reports.get",
+    "DeleteOfflineReport":    None,
+    "GetOfflineReportList":   "reports.get",
+    # API meta
+    "GetAvailableVersions":   None,
+    "GetVersion":             None,
+    "PingAPI":                None,
+    "PingAPI_X":              None,
+    # Tags (Live) — no v5 equivalent
+    "GetBannersTags":         None,
+    "UpdateBannersTags":      None,
+    "GetCampaignsTags":       None,
+    "UpdateCampaignsTags":    None,
+    # AdImage (Live)
+    "AdImage":                "adimages.add",
+    "AdImageAssociation":     None,
+    # Keyword suggestions — no real v5 equivalent (deduplicate removes
+    # duplicates, hasSearchVolume tests presence; neither suggests phrases).
+    "GetKeywordsSuggestion":  None,
+    # ===== CANDIDATES FOR IMPLEMENTATION (no v5 equivalent) =====
+    "GetClientsUnits":        None,  # client points balance — v4-only
+    "GetBalance":             None,  # campaign balance — v4-only
+    "GetCreditLimits":        None,
+    "TransferMoney":          None,
+    "PayCampaigns":           None,
+    "PayCampaignsByCard":     None,
+    "CheckPayment":           None,
+    "CreateInvoice":          None,
+    "AccountManagement":      None,  # shared account (Live)
+    "EnableSharedAccount":    None,  # (Live)
+    "GetEventsLog":           None,  # (Live)
+    "GetStatGoals":           None,  # Metrika goals
+    "GetRetargetingGoals":    None,  # (Live)
+    "CreateNewWordstatReport":None,
+    "DeleteWordstatReport":   None,
+    "GetWordstatReport":      None,
+    "GetWordstatReportList":  None,
+    "CreateNewForecast":      None,
+    "DeleteForecastReport":   None,
+    "GetForecast":            None,
+    "GetForecastList":        None,
+}
+
+# Methods explicitly mentioned by the issue author as relevant / actual.
+# Used to bump priority of unmapped methods to "high".
+V4_HIGH_PRIORITY_HINTS: frozenset[str] = frozenset({
+    "GetBalance", "GetClientsUnits", "GetCreditLimits",
+    "TransferMoney", "PayCampaigns", "PayCampaignsByCard",
+    "CreateInvoice", "AccountManagement", "EnableSharedAccount",
+    "GetEventsLog", "GetStatGoals", "GetRetargetingGoals",
+    "CreateNewWordstatReport", "DeleteWordstatReport",
+    "GetWordstatReport", "GetWordstatReportList",
+    "CreateNewForecast", "DeleteForecastReport",
+    "GetForecast", "GetForecastList",
+})
+
+# Methods that have no v5 equivalent but are not worth implementing in a
+# Python client either: API-meta probes (PingAPI, GetVersion, ...) and
+# health checks. Surfaced as "actual_no_v5_analogue" but with priority "low"
+# so they do not pollute the implementation-candidates list.
+V4_NO_BUSINESS_VALUE: frozenset[str] = frozenset({
+    "PingAPI", "PingAPI_X", "GetVersion", "GetAvailableVersions",
+})
+
+
+def classify_v4_method(method: str) -> tuple[str, str | None]:
+    """Classify a v4 / v4 Live operation against v5.
+
+    Returns a (status, v5_equivalent) tuple. Status is one of:
+      - "deprecated_with_v5_replacement" — method has a direct v5 analogue.
+      - "actual_no_v5_analogue" — method is in V4_TO_V5_MAP with value None
+        (= explicitly classified as "no v5 equivalent, candidate to implement").
+      - "unclassified" — method is missing from V4_TO_V5_MAP entirely.
+    """
+    if method not in V4_TO_V5_MAP:
+        return ("unclassified", None)
+    v5_eq = V4_TO_V5_MAP[method]
+    if v5_eq is None:
+        return ("actual_no_v5_analogue", None)
+    return ("deprecated_with_v5_replacement", v5_eq)
+
+
+def v4_method_priority(method: str, status: str) -> str:
+    """Return priority label for a v4 method."""
+    if status == "actual_no_v5_analogue":
+        if method in V4_NO_BUSINESS_VALUE:
+            return "low"
+        return "high" if method in V4_HIGH_PRIORITY_HINTS else "medium"
+    if status == "deprecated_with_v5_replacement":
+        return "low"
+    return "?"
 
 
 class DiscoveredService(NamedTuple):
@@ -452,6 +612,37 @@ def fetch_wsdl_operations(wsdl_url: str, timeout: int = 15) -> tuple[set[str], b
     return operations, True
 
 
+def discover_v4_wsdl_services(timeout: int) -> list[DiscoveredService]:
+    """Fetch the two monolithic v4 / v4 Live WSDLs and return DiscoveredService records.
+
+    Reuses fetch_wsdl_operations — same code path as v5, just with hard-coded
+    endpoints because v4 has no per-service WSDL split.
+    """
+    targets = [
+        ("v4",     V4_WSDL_URL,      "v4_monolithic",      f"{V4_DOCS_BASE}/concepts"),
+        ("v4live", V4_LIVE_WSDL_URL, "v4_live_monolithic", f"{V4_DOCS_BASE}/live/concepts"),
+    ]
+    services: list[DiscoveredService] = []
+    for version, wsdl_url, endpoint, docs_url in targets:
+        ops, available = fetch_wsdl_operations(wsdl_url, timeout)
+        if not available:
+            print(f"  Warning: WSDL {wsdl_url} unavailable", file=sys.stderr)
+            continue
+        soap_url = wsdl_url.replace("/wsdl/", "/")
+        services.append(DiscoveredService(
+            version=version,
+            name=version,
+            endpoint=endpoint,
+            docs_url=docs_url,
+            methods=ops,
+            wsdl_url=wsdl_url,
+            soap_url=soap_url,
+            json_url=None,
+        ))
+        print(f"  [{version}] {len(ops)} operations from {wsdl_url}", file=sys.stderr)
+    return services
+
+
 def _library_entry(endpoint: str) -> tuple[str, dict] | None:
     return next(
         ((name, info) for name, info in WSDL_RESOURCES.items() if info["endpoint"] == endpoint),
@@ -469,7 +660,14 @@ def _coverage_rows(
         for service in discovered_services
         if service.version == version
     }
-    library_endpoints = {info["endpoint"] for info in WSDL_RESOURCES.values()}
+    if version in {"v4", "v4live"}:
+        type_key = "wsdl_v4" if version == "v4" else "wsdl_v4live"
+        library_endpoints = {
+            info["endpoint"] for info in RESOURCE_CATALOG.values()
+            if info["type"] == type_key
+        }
+    else:
+        library_endpoints = {info["endpoint"] for info in V5_WSDL_RESOURCES.values()}
     all_endpoints = sorted(set(services_by_endpoint) | library_endpoints)
 
     rows: list[dict] = []
@@ -479,7 +677,7 @@ def _coverage_rows(
 
         if lib_entry:
             lib_name, lib_info = lib_entry
-            lib_methods = lib_info["methods"]
+            lib_methods = lib_info.get("lib_methods", lib_info["methods"])
         else:
             lib_name = None
             lib_methods = set()
@@ -590,12 +788,17 @@ def build_report(
 ) -> str:
     today = date.today().isoformat()
     legacy_methods = legacy_methods or []
-    versions = sorted({service.version for service in discovered_services}, key=lambda v: (v != "v5", v))
+    _version_order = {"v5": 0, "v501": 1, "v4": 2, "v4live": 3}
+    versions = sorted(
+        {service.version for service in discovered_services},
+        key=lambda v: (_version_order.get(v, 99), v),
+    )
 
     n_total_lib = len(RESOURCE_CATALOG)
-    n_wsdl_lib = len(WSDL_RESOURCES)
+    n_wsdl_lib = sum(1 for i in RESOURCE_CATALOG.values() if i["type"] == "wsdl")
     n_reports = sum(1 for i in RESOURCE_CATALOG.values() if i["type"] == "reports")
     n_oauth = sum(1 for i in RESOURCE_CATALOG.values() if i["type"] == "oauth")
+    n_v4 = sum(1 for i in RESOURCE_CATALOG.values() if i["type"] in {"wsdl_v4", "wsdl_v4live"})
 
     lines = [
         "# Yandex Direct API - Official Docs WSDL/SOAP Audit Report",
@@ -606,9 +809,10 @@ def build_report(
         "| Category | Count |",
         "|---|---|",
         f"| Total resources in `resource_mapping.py` | {n_total_lib} |",
-        f"| — SOAP/WSDL services | {n_wsdl_lib} |",
+        f"| — SOAP/WSDL services (v5) | {n_wsdl_lib} |",
         f"| — Reports API (non-SOAP) | {n_reports} |",
         f"| — OAuth helpers | {n_oauth} |",
+        f"| — Legacy v4 / v4 Live placeholders | {n_v4} |",
         f"| Official docs versions | {', '.join(versions) if versions else 'none'} |",
         f"| Official docs WSDL entries | {len(discovered_services)} |",
         f"| Legacy v4 methods | {len(legacy_methods)} |",
@@ -622,7 +826,7 @@ def build_report(
         "",
     ]
     for i, (name, info) in enumerate(
-        ((n, i) for n, i in RESOURCE_CATALOG.items() if i["type"] != "wsdl"), start=1
+        ((n, i) for n, i in RESOURCE_CATALOG.items() if i["type"] not in _WSDL_TYPES), start=1
     ):
         type_label = {"reports": "Reports API (TSV, async)", "oauth": "OAuth helper"}.get(info["type"], info["type"])
         lines.append(f"{i}. **{name}** (`{info['endpoint']}`) — {type_label}")
@@ -642,6 +846,120 @@ def build_report(
             lines.append(f"{i}. **{method.name}** — {method.docs_url}")
         lines.append("")
 
+    return "\n".join(lines)
+
+
+def build_v4_matrix(v4_services: list[DiscoveredService]) -> str:
+    """Render a stand-alone Markdown matrix of v4 / v4 Live operations vs v5.
+
+    Uses real WSDL operations (not docs) as the source of truth. Each operation
+    is classified via classify_v4_method against V4_TO_V5_MAP.
+    """
+    today = date.today().isoformat()
+    by_version: dict[str, set[str]] = {svc.version: set(svc.methods) for svc in v4_services}
+    v4_ops = by_version.get("v4", set())
+    live_ops = by_version.get("v4live", set())
+    all_ops = v4_ops | live_ops
+
+    rows: list[dict] = []
+    for op in sorted(all_ops):
+        status, v5_eq = classify_v4_method(op)
+        priority = v4_method_priority(op, status)
+        in_v4 = op in v4_ops
+        in_live = op in live_ops
+        if in_v4 and in_live:
+            availability = "v4 + Live"
+        elif in_live:
+            availability = "Live only"
+        else:
+            availability = "v4 only"
+        rows.append({
+            "method": op,
+            "availability": availability,
+            "status": status,
+            "v5_equivalent": v5_eq,
+            "priority": priority,
+        })
+
+    n_total = len(rows)
+    n_actual = sum(1 for r in rows if r["status"] == "actual_no_v5_analogue")
+    n_dep = sum(1 for r in rows if r["status"] == "deprecated_with_v5_replacement")
+    n_unclassified = sum(1 for r in rows if r["status"] == "unclassified")
+    n_high = sum(1 for r in rows if r["priority"] == "high")
+    n_medium = sum(1 for r in rows if r["priority"] == "medium")
+
+    lines: list[str] = [
+        "# Yandex Direct API v4 / v4 Live — Methods Matrix",
+        f"**Date:** {today}",
+        "",
+        "Source of truth: live WSDL endpoints",
+        f"- v4: `{V4_WSDL_URL}`",
+        f"- v4 Live: `{V4_LIVE_WSDL_URL}`",
+        "",
+        "Status semantics:",
+        "- **deprecated_with_v5_replacement** — direct v5 analogue exists; new code should use v5.",
+        "- **actual_no_v5_analogue** — no v5 equivalent; candidate for implementation in this library.",
+        "- **unclassified** — not yet classified in `V4_TO_V5_MAP`; needs review.",
+        "",
+        "## Summary",
+        "",
+        "| Category | Count |",
+        "|---|---|",
+        f"| Total v4 / v4 Live operations (from WSDL) | {n_total} |",
+        f"| Operations also available in v4 Live only | {sum(1 for r in rows if r['availability'] == 'Live only')} |",
+        f"| Operations available in both v4 and Live | {sum(1 for r in rows if r['availability'] == 'v4 + Live')} |",
+        f"| Operations available only in v4 (not Live) | {sum(1 for r in rows if r['availability'] == 'v4 only')} |",
+        f"| Status: deprecated_with_v5_replacement | {n_dep} |",
+        f"| Status: actual_no_v5_analogue (candidates) | {n_actual} |",
+        f"| Status: unclassified (needs review) | {n_unclassified} |",
+        f"| Priority: high (issue-mentioned candidates) | {n_high} |",
+        f"| Priority: medium (other actual candidates) | {n_medium} |",
+        "",
+        "## Full method table",
+        "",
+        "| # | Method | Availability | Status | v5 equivalent | Priority |",
+        "|---|---|---|---|---|---|",
+    ]
+    for i, row in enumerate(rows, start=1):
+        v5_cell = f"`{row['v5_equivalent']}`" if row["v5_equivalent"] else "—"
+        lines.append(
+            f"| {i} | `{row['method']}` | {row['availability']} | {row['status']} | "
+            f"{v5_cell} | {row['priority']} |"
+        )
+
+    lines += [
+        "",
+        "## Implementation candidates",
+        "",
+        "Methods with no v5 analogue, sorted by priority (high → medium):",
+        "",
+    ]
+    candidates = [r for r in rows if r["status"] == "actual_no_v5_analogue"]
+    candidates.sort(key=lambda r: (0 if r["priority"] == "high" else 1, r["method"]))
+    if candidates:
+        lines.append("| # | Method | Availability | Priority |")
+        lines.append("|---|---|---|---|")
+        for i, row in enumerate(candidates, start=1):
+            lines.append(
+                f"| {i} | `{row['method']}` | {row['availability']} | {row['priority']} |"
+            )
+    else:
+        lines.append("_No candidates — every method is either deprecated or unclassified._")
+
+    if n_unclassified > 0:
+        lines += [
+            "",
+            "## Unclassified operations",
+            "",
+            "These operations were found in the live WSDL but are missing from `V4_TO_V5_MAP`. "
+            "Add them to the map before treating this matrix as final.",
+            "",
+        ]
+        for row in rows:
+            if row["status"] == "unclassified":
+                lines.append(f"- `{row['method']}` ({row['availability']})")
+
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -692,6 +1010,10 @@ def main() -> None:
                         help="HTTP timeout in seconds")
     parser.add_argument("--max-pages", type=int, default=200,
                         help="Maximum pages to crawl in BFS discovery (default: 200)")
+    parser.add_argument("--v4-matrix", metavar="FILE",
+                        help="Generate the v4 / v4 Live methods matrix to a separate Markdown file")
+    parser.add_argument("--legacy-v4-docs", action="store_true",
+                        help="Also crawl legacy v4 docs pages (slow, often captcha-blocked)")
     args = parser.parse_args()
 
     requested_versions = {version.strip() for version in args.versions.split(",") if version.strip()}
@@ -709,13 +1031,22 @@ def main() -> None:
             if service.version in requested_versions
         ]
 
+    v4_services: list[DiscoveredService] = []
     if "v4" in requested_versions:
-        legacy_methods = discover_v4_methods_from_docs(args.v4_docs_base_url, args.timeout)
+        v4_services = discover_v4_wsdl_services(args.timeout)
+        discovered_services.extend(v4_services)
+        if args.legacy_v4_docs:
+            legacy_methods = discover_v4_methods_from_docs(args.v4_docs_base_url, args.timeout)
 
     wsdl_results: dict[str, tuple[set[str], bool]] = {}
     seen_wsdl: set[str] = set()
-    print(f"\nFetching WSDL for {len(discovered_services)} official docs entries...", file=sys.stderr)
-    for service in discovered_services:
+    # v4 services were already fetched inside discover_v4_wsdl_services — reuse their methods.
+    for service in v4_services:
+        wsdl_results[service.wsdl_url] = (service.methods, True)
+        seen_wsdl.add(service.wsdl_url)
+    v5_like = [s for s in discovered_services if s.version not in {"v4", "v4live"}]
+    print(f"\nFetching WSDL for {len(v5_like)} official docs entries...", file=sys.stderr)
+    for service in v5_like:
         if service.wsdl_url not in seen_wsdl:
             seen_wsdl.add(service.wsdl_url)
             ops, available = fetch_wsdl_operations(service.wsdl_url, args.timeout)
@@ -729,7 +1060,7 @@ def main() -> None:
     # Fallback: fetch WSDL for library resources not found in official docs
     discovered_endpoints = {s.endpoint for s in discovered_services}
     for version in requested_versions & {"v5", "v501"}:
-        for name, info in WSDL_RESOURCES.items():
+        for name, info in V5_WSDL_RESOURCES.items():
             endpoint = info["endpoint"]
             if endpoint not in discovered_endpoints:
                 wsdl_url = f"https://api.direct.yandex.com/{version}/{endpoint}?wsdl"
@@ -762,6 +1093,21 @@ def main() -> None:
         print(f"Report saved to {args.output}", file=sys.stderr)
     else:
         print(report)
+
+    if args.v4_matrix:
+        if not v4_services:
+            print(
+                "Warning: --v4-matrix requested but v4 WSDL discovery returned nothing. "
+                "Ensure 'v4' is in --versions and the WSDL endpoints are reachable.",
+                file=sys.stderr,
+            )
+        matrix = build_v4_matrix(v4_services)
+        out_dir = os.path.dirname(args.v4_matrix)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.v4_matrix, "w", encoding="utf-8") as f:
+            f.write(matrix)
+        print(f"v4 matrix saved to {args.v4_matrix}", file=sys.stderr)
 
     if args.issue:
         create_github_issue(report)
