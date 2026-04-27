@@ -436,6 +436,94 @@ print(report().to_columns())
 ```
 
 
+## v4 Live API
+
+Yandex Direct API v4 / v4 Live exposes a number of operations that have **no
+analogue in v5** — for example account balance and credit limits, agency
+finance operations (TransferMoney, PayCampaigns), Wordstat reports, budget
+forecasts, the events log, retargeting goals, and shared-account management.
+This library ships a separate `YandexDirectV4Live` client that wraps the JSON
+variant of v4 (`https://api.direct.yandex.ru/live/v4/json/`).
+
+The list of supported operations is curated against `docs/v4_methods_matrix.md`
+— only methods that lack a v5 equivalent are exposed. See
+`tapi_yandex_direct.v4.SUPPORTED_V4_METHODS` for the full set.
+
+### Client params
+
+```python
+from tapi_yandex_direct import YandexDirectV4Live
+
+client = YandexDirectV4Live(
+    access_token="{your_access_token}",
+    # Required when calling on behalf of a sub-client (agency accounts).
+    login="{login}",
+    # Locale used for error messages. Defaults to "en".
+    language="ru",
+    # Sandbox base URL.
+    is_sandbox=False,
+    # Retry on rate-limit error_code in (54, 55).
+    retry_if_exceeded_limit=True,
+    retries_if_server_error=5,
+)
+```
+
+### Request shape
+
+v4 Live is RPC-style: there is **one endpoint** and the operation name lives in
+the JSON body. The client injects the OAuth token, locale, and login (for
+`param: dict` payloads only) automatically — pass `method` and `param`:
+
+```python
+# Read-only: rate-limit units balance for the account
+result = client.v4live().post(data={
+    "method": "GetClientsUnits",
+    "param": ["{login}"],   # list-of-logins for this method
+})
+result.data        # → {"data": [{"UnitsRest": 32000, "Login": "..."}]}
+result().extract() # → [{"UnitsRest": 32000, "Login": "..."}]
+
+# Method with dict params (login auto-injected from client config)
+result = client.v4live().post(data={
+    "method": "GetEventsLog",
+    "param": {"TimestampFrom": 1714200000, "Limit": 100},
+})
+```
+
+### Errors
+
+v4 Live returns HTTP 200 even on errors — the failure is signalled by a
+non-zero `error_code` in the body. The client maps this into Python exceptions:
+
+| `error_code` | Exception |
+|---|---|
+| 53 | `V4LiveTokenError` |
+| 54, 55, 56 | `V4LiveRequestsLimitError` |
+| any other | `V4LiveError` |
+
+```python
+from tapi_yandex_direct.exceptions import V4LiveError, V4LiveTokenError
+
+try:
+    client.v4live().post(data={"method": "GetBalance", "param": {...}})
+except V4LiveTokenError:
+    refresh_token()
+except V4LiveError as e:
+    print(e.error_code, e.error_str, e.error_detail)
+```
+
+### Differences from v5
+
+| Aspect | v5 (`YandexDirect`) | v4 Live (`YandexDirectV4Live`) |
+|---|---|---|
+| Endpoint | per-resource (`/json/v5/<resource>`) | single (`/live/v4/json/`) |
+| Method position | URL path / header | `method` field in body |
+| Auth | `Authorization: Bearer …` header | header **plus** `token` field in body |
+| Error transport | HTTP error codes / `{"error": …}` | always HTTP 200, `{"error_code": int, …}` |
+| `error_code` type | string | integer |
+| Pagination | `LimitedBy` in result, offset injection | per-method (`Limit`, `TimestampFrom`, …) — single-shot at the adapter level |
+
+
 ## Features
 
 Information about the resource.
