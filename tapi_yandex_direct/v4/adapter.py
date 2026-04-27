@@ -83,7 +83,7 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
     def response_to_native(self, response: Response) -> Union[dict, str, None]:
         if response.content.strip():
             try:
-                return orjson.loads(response.content.decode())
+                return orjson.loads(response.content)
             except ValueError:
                 return response.text
 
@@ -93,7 +93,7 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
         # JSONAdapterMixin pulls data["error"], which is wrong for v4.
         if data is None and response is not None and response.content.strip():
             try:
-                data = orjson.loads(response.content.decode())
+                data = orjson.loads(response.content)
             except ValueError:
                 data = None
         return data
@@ -112,8 +112,16 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
         data = self.response_to_native(response)
 
         # v4 Live returns HTTP 200 even on errors — detect via error_code.
-        if isinstance(data, dict) and int(data.get("error_code", 0)) != 0:
-            raise ResponseProcessException(ClientError, data)
+        # Defensive cast: matches the pattern used in error_handling /
+        # retry_request below, so a malformed error_code (null, string)
+        # never raises a raw TypeError up through the adapter.
+        if isinstance(data, dict):
+            try:
+                code = int(data.get("error_code", 0))
+            except (TypeError, ValueError):
+                code = 0
+            if code != 0:
+                raise ResponseProcessException(ClientError, data)
 
         return super().process_response(response, request_kwargs, **kwargs)
 

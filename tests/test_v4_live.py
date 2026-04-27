@@ -193,6 +193,24 @@ def test_v4live_arbitrary_error_raises_v4live_error():
 
 
 @responses.activate
+def test_v4live_malformed_error_code_treated_as_success():
+    # Defensive cast in process_response: if Yandex ever returned
+    # error_code=null or a non-numeric string, the response should be treated
+    # as success rather than letting a raw TypeError/ValueError leak through.
+    responses.add(
+        responses.POST,
+        V4_LIVE_URL,
+        json={"error_code": None, "data": [{"x": 1}]},
+        status=200,
+    )
+    client = _make_client()
+    result = client.v4live().post(
+        data={"method": "GetClientsUnits", "param": []}
+    )
+    assert result().extract() == [{"x": 1}]
+
+
+@responses.activate
 def test_v4live_sandbox_url_used():
     responses.add(
         responses.POST,
