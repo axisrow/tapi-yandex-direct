@@ -451,6 +451,15 @@ def test_v4_to_v5_map_covers_all_known_v4_live_operations():
         f"V4_TO_V5_MAP / V4_REMOVED_FROM_LIVE contain entries not in "
         f"known_v4_live_ops (possible typos in keys): {sorted(extra)}"
     )
+    # The two sets must be disjoint. classify_v4_method silently prefers
+    # V4_REMOVED_FROM_LIVE on overlap, so without this guard a method
+    # accidentally re-added to V4_TO_V5_MAP would still classify as
+    # "removed_from_v4_live" and the desync would go unnoticed.
+    overlap = set(audit_wsdl.V4_TO_V5_MAP) & set(audit_wsdl.V4_REMOVED_FROM_LIVE)
+    assert not overlap, (
+        f"Methods must not appear in both V4_TO_V5_MAP and "
+        f"V4_REMOVED_FROM_LIVE: {sorted(overlap)}"
+    )
 
 
 def test_classify_v4_method_returns_removed_for_disabled_method():

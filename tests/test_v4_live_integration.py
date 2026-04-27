@@ -1,10 +1,11 @@
 """Optional live integration tests for v4 Live JSON client.
 
-Skipped automatically unless ``YANDEX_DIRECT_TOKEN`` is in the environment, so
-CI never hits the real API. Run locally with::
+Skipped automatically unless both ``YANDEX_DIRECT_TOKEN`` and
+``YANDEX_DIRECT_LOGIN`` are in the environment, so CI never hits the real API.
+Run locally with::
 
     export YANDEX_DIRECT_TOKEN=...   (real OAuth token)
-    export YANDEX_DIRECT_LOGIN=...   (account login, defaults to ksamatadirect)
+    export YANDEX_DIRECT_LOGIN=...   (account login)
     pytest tests/test_v4_live_integration.py -v -m live
 
 The probes intentionally cover only **read-only** v4 Live operations and one
@@ -20,8 +21,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("YANDEX_DIRECT_TOKEN"),
-    reason="set YANDEX_DIRECT_TOKEN to run against the real Yandex Direct API",
+    not (os.environ.get("YANDEX_DIRECT_TOKEN") and os.environ.get("YANDEX_DIRECT_LOGIN")),
+    reason=(
+        "set both YANDEX_DIRECT_TOKEN and YANDEX_DIRECT_LOGIN "
+        "to run against the real Yandex Direct API"
+    ),
 )
 
 
@@ -29,7 +33,7 @@ pytestmark = pytest.mark.skipif(
 def v4_kwargs() -> dict:
     return {
         "access_token": os.environ["YANDEX_DIRECT_TOKEN"],
-        "login": os.environ.get("YANDEX_DIRECT_LOGIN", "ksamatadirect"),
+        "login": os.environ["YANDEX_DIRECT_LOGIN"],
     }
 
 
@@ -137,9 +141,12 @@ def test_get_campaigns_tags(v4_client, real_ids):
         "param": {"CampaignIDS": [real_ids["campaign_id"]]},
     })
     extracted = res().extract()
-    assert isinstance(extracted, list) and extracted
-    assert extracted[0]["CampaignID"] == real_ids["campaign_id"]
-    assert "Tags" in extracted[0]
+    # Empty list is a valid response (campaign has no tags) — only assert
+    # element shape when something came back.
+    assert isinstance(extracted, list)
+    if extracted:
+        assert extracted[0]["CampaignID"] == real_ids["campaign_id"]
+        assert "Tags" in extracted[0]
 
 
 @pytest.mark.live
@@ -152,8 +159,10 @@ def test_get_banners_tags(v4_client, real_ids):
         "param": {"BannerIDS": [real_ids["banner_id"]]},
     })
     extracted = res().extract()
-    assert isinstance(extracted, list) and extracted
-    assert extracted[0]["BannerID"] == real_ids["banner_id"]
+    # Empty list is valid (banner has no tags).
+    assert isinstance(extracted, list)
+    if extracted:
+        assert extracted[0]["BannerID"] == real_ids["banner_id"]
 
 
 # ------- methods with non-trivial schemas -------
