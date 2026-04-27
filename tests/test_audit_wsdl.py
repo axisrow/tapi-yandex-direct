@@ -299,13 +299,16 @@ def test_v4_method_priority_high_for_issue_mentioned_actual():
     assert audit_wsdl.v4_method_priority(
         "GetBalance", "actual_no_v5_analogue"
     ) == "high"
-    # An actual method NOT in the issue hints should be medium.
-    # PingAPI is mapped to None (actual) but irrelevant for issue → medium.
-    # Use a method in V4_TO_V5_MAP=None and not in V4_HIGH_PRIORITY_HINTS:
-    # AdImageAssociation maps to None and is not in hints.
+    # An actual method NOT in the issue hints AND not in V4_NO_BUSINESS_VALUE
+    # should be medium. AdImageAssociation maps to None, is not in hints, and
+    # is not in V4_NO_BUSINESS_VALUE — so it lands in "medium".
+    # (PingAPI also maps to None but is in V4_NO_BUSINESS_VALUE → "low".)
     assert audit_wsdl.v4_method_priority(
         "AdImageAssociation", "actual_no_v5_analogue"
     ) == "medium"
+    assert audit_wsdl.v4_method_priority(
+        "PingAPI", "actual_no_v5_analogue"
+    ) == "low"
     assert audit_wsdl.v4_method_priority(
         "GetCampaignsList", "deprecated_with_v5_replacement"
     ) == "low"
