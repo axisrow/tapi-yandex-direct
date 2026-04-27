@@ -174,8 +174,9 @@ V4_TO_V5_MAP: dict[str, str | None] = {
     # AdImage (Live)
     "AdImage":                "adimages.add",
     "AdImageAssociation":     None,
-    # Keyword suggestions
-    "GetKeywordsSuggestion":  "keywordsresearch.deduplicate",
+    # Keyword suggestions — no real v5 equivalent (deduplicate removes
+    # duplicates, hasSearchVolume tests presence; neither suggests phrases).
+    "GetKeywordsSuggestion":  None,
     # ===== CANDIDATES FOR IMPLEMENTATION (no v5 equivalent) =====
     "GetClientsUnits":        None,  # client points balance — v4-only
     "GetBalance":             None,  # campaign balance — v4-only
@@ -213,6 +214,14 @@ V4_HIGH_PRIORITY_HINTS: frozenset[str] = frozenset({
     "GetForecast", "GetForecastList",
 })
 
+# Methods that have no v5 equivalent but are not worth implementing in a
+# Python client either: API-meta probes (PingAPI, GetVersion, ...) and
+# health checks. Surfaced as "actual_no_v5_analogue" but with priority "low"
+# so they do not pollute the implementation-candidates list.
+V4_NO_BUSINESS_VALUE: frozenset[str] = frozenset({
+    "PingAPI", "PingAPI_X", "GetVersion", "GetAvailableVersions",
+})
+
 
 def classify_v4_method(method: str) -> tuple[str, str | None]:
     """Classify a v4 / v4 Live operation against v5.
@@ -234,6 +243,8 @@ def classify_v4_method(method: str) -> tuple[str, str | None]:
 def v4_method_priority(method: str, status: str) -> str:
     """Return priority label for a v4 method."""
     if status == "actual_no_v5_analogue":
+        if method in V4_NO_BUSINESS_VALUE:
+            return "low"
         return "high" if method in V4_HIGH_PRIORITY_HINTS else "medium"
     if status == "deprecated_with_v5_replacement":
         return "low"
@@ -777,7 +788,11 @@ def build_report(
 ) -> str:
     today = date.today().isoformat()
     legacy_methods = legacy_methods or []
-    versions = sorted({service.version for service in discovered_services}, key=lambda v: (v != "v5", v))
+    _version_order = {"v5": 0, "v501": 1, "v4": 2, "v4live": 3}
+    versions = sorted(
+        {service.version for service in discovered_services},
+        key=lambda v: (_version_order.get(v, 99), v),
+    )
 
     n_total_lib = len(RESOURCE_CATALOG)
     n_wsdl_lib = sum(1 for i in RESOURCE_CATALOG.values() if i["type"] == "wsdl")

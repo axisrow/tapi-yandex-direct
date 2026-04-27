@@ -402,9 +402,10 @@ def test_build_v4_matrix_handles_empty_input():
 
 def test_v4_to_v5_map_covers_all_known_v4_live_operations():
     # Source of truth: real WSDL operation list captured at the time this audit
-    # was authored (74 ops). If Yandex adds new operations, classify them in
-    # V4_TO_V5_MAP — otherwise this guard fails and the matrix grows
-    # an "unclassified" section.
+    # was authored (74 ops). The set is static — Yandex-side additions are NOT
+    # detected automatically; only a manual update to known_v4_live_ops or to
+    # V4_TO_V5_MAP triggers this guard. If you grow either set and forget the
+    # other, the assertion below catches the desync.
     known_v4_live_ops = {
         "AccountManagement", "AdImage", "AdImageAssociation", "ArchiveBanners",
         "ArchiveCampaign", "CheckPayment", "CreateInvoice", "CreateNewForecast",
@@ -433,4 +434,9 @@ def test_v4_to_v5_map_covers_all_known_v4_live_operations():
     assert not missing, (
         f"V4_TO_V5_MAP must classify every known v4 / v4 Live WSDL operation. "
         f"Add entries for: {sorted(missing)}"
+    )
+    extra = set(audit_wsdl.V4_TO_V5_MAP) - known_v4_live_ops
+    assert not extra, (
+        f"V4_TO_V5_MAP contains entries not in known_v4_live_ops "
+        f"(possible typos in keys): {sorted(extra)}"
     )

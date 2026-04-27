@@ -18,11 +18,11 @@ Status semantics:
 | Operations also available in v4 Live only | 17 |
 | Operations available in both v4 and Live | 57 |
 | Operations available only in v4 (not Live) | 0 |
-| Status: deprecated_with_v5_replacement | 42 |
-| Status: actual_no_v5_analogue (candidates) | 32 |
+| Status: deprecated_with_v5_replacement | 41 |
+| Status: actual_no_v5_analogue (candidates) | 33 |
 | Status: unclassified (needs review) | 0 |
 | Priority: high (issue-mentioned candidates) | 20 |
-| Priority: medium (other actual candidates) | 12 |
+| Priority: medium (other actual candidates) | 9 |
 
 ## Full method table
 
@@ -49,7 +49,7 @@ Status semantics:
 | 19 | `DeleteReport` | v4 + Live | actual_no_v5_analogue | — | medium |
 | 20 | `DeleteWordstatReport` | v4 + Live | actual_no_v5_analogue | — | high |
 | 21 | `EnableSharedAccount` | Live only | actual_no_v5_analogue | — | high |
-| 22 | `GetAvailableVersions` | v4 + Live | actual_no_v5_analogue | — | medium |
+| 22 | `GetAvailableVersions` | v4 + Live | actual_no_v5_analogue | — | low |
 | 23 | `GetBalance` | v4 + Live | actual_no_v5_analogue | — | high |
 | 24 | `GetBannerPhrases` | v4 + Live | deprecated_with_v5_replacement | `keywords.get` | low |
 | 25 | `GetBannerPhrasesFilter` | v4 + Live | deprecated_with_v5_replacement | `keywords.get` | low |
@@ -69,7 +69,7 @@ Status semantics:
 | 39 | `GetEventsLog` | Live only | actual_no_v5_analogue | — | high |
 | 40 | `GetForecast` | v4 + Live | actual_no_v5_analogue | — | high |
 | 41 | `GetForecastList` | v4 + Live | actual_no_v5_analogue | — | high |
-| 42 | `GetKeywordsSuggestion` | v4 + Live | deprecated_with_v5_replacement | `keywordsresearch.deduplicate` | low |
+| 42 | `GetKeywordsSuggestion` | v4 + Live | actual_no_v5_analogue | — | medium |
 | 43 | `GetOfflineReportList` | Live only | deprecated_with_v5_replacement | `reports.get` | low |
 | 44 | `GetRegions` | v4 + Live | deprecated_with_v5_replacement | `dictionaries.get` | low |
 | 45 | `GetReportList` | v4 + Live | deprecated_with_v5_replacement | `reports.get` | low |
@@ -79,15 +79,15 @@ Status semantics:
 | 49 | `GetSubClients` | v4 + Live | deprecated_with_v5_replacement | `agencyclients.get` | low |
 | 50 | `GetSummaryStat` | v4 + Live | deprecated_with_v5_replacement | `reports.get` | low |
 | 51 | `GetTimeZones` | v4 + Live | deprecated_with_v5_replacement | `dictionaries.get` | low |
-| 52 | `GetVersion` | v4 + Live | actual_no_v5_analogue | — | medium |
+| 52 | `GetVersion` | v4 + Live | actual_no_v5_analogue | — | low |
 | 53 | `GetWordstatReport` | v4 + Live | actual_no_v5_analogue | — | high |
 | 54 | `GetWordstatReportList` | v4 + Live | actual_no_v5_analogue | — | high |
 | 55 | `Keyword` | Live only | deprecated_with_v5_replacement | `keywords.add` | low |
 | 56 | `ModerateBanners` | v4 + Live | deprecated_with_v5_replacement | `ads.moderate` | low |
 | 57 | `PayCampaigns` | v4 + Live | actual_no_v5_analogue | — | high |
 | 58 | `PayCampaignsByCard` | v4 + Live | actual_no_v5_analogue | — | high |
-| 59 | `PingAPI` | v4 + Live | actual_no_v5_analogue | — | medium |
-| 60 | `PingAPI_X` | v4 + Live | actual_no_v5_analogue | — | medium |
+| 59 | `PingAPI` | v4 + Live | actual_no_v5_analogue | — | low |
+| 60 | `PingAPI_X` | v4 + Live | actual_no_v5_analogue | — | low |
 | 61 | `ResumeBanners` | v4 + Live | deprecated_with_v5_replacement | `ads.resume` | low |
 | 62 | `ResumeCampaign` | v4 + Live | deprecated_with_v5_replacement | `campaigns.resume` | low |
 | 63 | `Retargeting` | Live only | deprecated_with_v5_replacement | `retargeting.get` | low |
@@ -133,11 +133,12 @@ Methods with no v5 analogue, sorted by priority (high → medium):
 | 22 | `CheckPayment` | v4 + Live | medium |
 | 23 | `DeleteOfflineReport` | Live only | medium |
 | 24 | `DeleteReport` | v4 + Live | medium |
-| 25 | `GetAvailableVersions` | v4 + Live | medium |
+| 25 | `GetAvailableVersions` | v4 + Live | low |
 | 26 | `GetBannersTags` | Live only | medium |
 | 27 | `GetCampaignsTags` | Live only | medium |
-| 28 | `GetVersion` | v4 + Live | medium |
-| 29 | `PingAPI` | v4 + Live | medium |
-| 30 | `PingAPI_X` | v4 + Live | medium |
-| 31 | `UpdateBannersTags` | Live only | medium |
-| 32 | `UpdateCampaignsTags` | Live only | medium |
+| 28 | `GetKeywordsSuggestion` | v4 + Live | medium |
+| 29 | `GetVersion` | v4 + Live | low |
+| 30 | `PingAPI` | v4 + Live | low |
+| 31 | `PingAPI_X` | v4 + Live | low |
+| 32 | `UpdateBannersTags` | Live only | medium |
+| 33 | `UpdateCampaignsTags` | Live only | medium |
