@@ -275,3 +275,162 @@ def test_build_report_separates_v5_v501_and_v4_coverage():
     assert "Missing in library (1):** `archive`" in report
     assert "newMethod" in report
     assert "CreateNewWordstatReport" in report
+
+
+def test_classify_v4_method_returns_v5_equivalent_for_mapped_method():
+    status, v5_eq = audit_wsdl.classify_v4_method("GetCampaignsList")
+    assert status == "deprecated_with_v5_replacement"
+    assert v5_eq == "campaigns.get"
+
+
+def test_classify_v4_method_returns_none_for_actual_candidate():
+    status, v5_eq = audit_wsdl.classify_v4_method("GetClientsUnits")
+    assert status == "actual_no_v5_analogue"
+    assert v5_eq is None
+
+
+def test_classify_v4_method_returns_unclassified_for_unknown():
+    status, v5_eq = audit_wsdl.classify_v4_method("SomeBrandNewOperation")
+    assert status == "unclassified"
+    assert v5_eq is None
+
+
+def test_v4_method_priority_high_for_issue_mentioned_actual():
+    assert audit_wsdl.v4_method_priority(
+        "GetBalance", "actual_no_v5_analogue"
+    ) == "high"
+    # An actual method NOT in the issue hints should be medium.
+    # PingAPI is mapped to None (actual) but irrelevant for issue → medium.
+    # Use a method in V4_TO_V5_MAP=None and not in V4_HIGH_PRIORITY_HINTS:
+    # AdImageAssociation maps to None and is not in hints.
+    assert audit_wsdl.v4_method_priority(
+        "AdImageAssociation", "actual_no_v5_analogue"
+    ) == "medium"
+    assert audit_wsdl.v4_method_priority(
+        "GetCampaignsList", "deprecated_with_v5_replacement"
+    ) == "low"
+    assert audit_wsdl.v4_method_priority("Whatever", "unclassified") == "?"
+
+
+def test_discover_v4_wsdl_services_uses_monolithic_endpoints(monkeypatch):
+    fetched: list[str] = []
+
+    def fake_fetch(url, timeout):
+        fetched.append(url)
+        if "live" in url:
+            return ({"GetEventsLog", "AccountManagement", "GetBalance"}, True)
+        return ({"GetBalance", "GetCampaignsList"}, True)
+
+    monkeypatch.setattr(audit_wsdl, "fetch_wsdl_operations", fake_fetch)
+
+    services = audit_wsdl.discover_v4_wsdl_services(timeout=5)
+
+    assert fetched == [audit_wsdl.V4_WSDL_URL, audit_wsdl.V4_LIVE_WSDL_URL]
+    assert [s.version for s in services] == ["v4", "v4live"]
+    assert services[0].wsdl_url == audit_wsdl.V4_WSDL_URL
+    assert services[1].wsdl_url == audit_wsdl.V4_LIVE_WSDL_URL
+    assert services[0].methods == {"GetBalance", "GetCampaignsList"}
+    assert services[1].methods == {"GetEventsLog", "AccountManagement", "GetBalance"}
+
+
+def test_discover_v4_wsdl_services_skips_unavailable(monkeypatch, capsys):
+    def fake_fetch(url, timeout):
+        if "live" in url:
+            return (set(), False)
+        return ({"GetBalance"}, True)
+
+    monkeypatch.setattr(audit_wsdl, "fetch_wsdl_operations", fake_fetch)
+
+    services = audit_wsdl.discover_v4_wsdl_services(timeout=5)
+
+    assert [s.version for s in services] == ["v4"]
+    err = capsys.readouterr().err
+    assert "unavailable" in err
+
+
+def test_build_v4_matrix_includes_priority_and_v5_equivalent():
+    DiscoveredService = audit_wsdl.DiscoveredService
+    v4_svc = DiscoveredService(
+        version="v4",
+        name="v4",
+        endpoint="v4_monolithic",
+        docs_url="",
+        methods={"GetCampaignsList", "GetBalance"},
+        wsdl_url=audit_wsdl.V4_WSDL_URL,
+        soap_url="https://api.direct.yandex.ru/v4/",
+        json_url=None,
+    )
+    live_svc = DiscoveredService(
+        version="v4live",
+        name="v4live",
+        endpoint="v4_live_monolithic",
+        docs_url="",
+        methods={"GetCampaignsList", "GetBalance", "AccountManagement", "BogusUnclassifiedOp"},
+        wsdl_url=audit_wsdl.V4_LIVE_WSDL_URL,
+        soap_url="https://api.direct.yandex.ru/live/v4/",
+        json_url=None,
+    )
+
+    matrix = audit_wsdl.build_v4_matrix([v4_svc, live_svc])
+
+    assert "# Yandex Direct API v4 / v4 Live — Methods Matrix" in matrix
+    # Deprecated v5 mapping rendered in table
+    assert "`GetCampaignsList`" in matrix
+    assert "`campaigns.get`" in matrix
+    assert "deprecated_with_v5_replacement" in matrix
+    assert "low" in matrix
+    # Actual + high priority (issue-mentioned)
+    assert "`GetBalance`" in matrix
+    assert "actual_no_v5_analogue" in matrix
+    assert "high" in matrix
+    assert "`AccountManagement`" in matrix
+    # Availability column
+    assert "v4 + Live" in matrix
+    assert "Live only" in matrix
+    # Unclassified surfaces in dedicated section
+    assert "Unclassified operations" in matrix
+    assert "`BogusUnclassifiedOp`" in matrix
+    # Implementation candidates list
+    assert "Implementation candidates" in matrix
+
+
+def test_build_v4_matrix_handles_empty_input():
+    matrix = audit_wsdl.build_v4_matrix([])
+    assert "Total v4 / v4 Live operations (from WSDL) | 0" in matrix
+    assert "No candidates" in matrix
+
+
+def test_v4_to_v5_map_covers_all_known_v4_live_operations():
+    # Source of truth: real WSDL operation list captured at the time this audit
+    # was authored (74 ops). If Yandex adds new operations, classify them in
+    # V4_TO_V5_MAP — otherwise this guard fails and the matrix grows
+    # an "unclassified" section.
+    known_v4_live_ops = {
+        "AccountManagement", "AdImage", "AdImageAssociation", "ArchiveBanners",
+        "ArchiveCampaign", "CheckPayment", "CreateInvoice", "CreateNewForecast",
+        "CreateNewReport", "CreateNewSubclient", "CreateNewWordstatReport",
+        "CreateOfflineReport", "CreateOrUpdateBanners", "CreateOrUpdateCampaign",
+        "DeleteBanners", "DeleteCampaign", "DeleteForecastReport",
+        "DeleteOfflineReport", "DeleteReport", "DeleteWordstatReport",
+        "EnableSharedAccount", "GetAvailableVersions", "GetBalance",
+        "GetBannerPhrases", "GetBannerPhrasesFilter", "GetBanners",
+        "GetBannersStat", "GetBannersTags", "GetCampaignParams",
+        "GetCampaignsList", "GetCampaignsListFilter", "GetCampaignsParams",
+        "GetCampaignsTags", "GetChanges", "GetClientInfo", "GetClientsList",
+        "GetClientsUnits", "GetCreditLimits", "GetEventsLog", "GetForecast",
+        "GetForecastList", "GetKeywordsSuggestion", "GetOfflineReportList",
+        "GetRegions", "GetReportList", "GetRetargetingGoals", "GetRubrics",
+        "GetStatGoals", "GetSubClients", "GetSummaryStat", "GetTimeZones",
+        "GetVersion", "GetWordstatReport", "GetWordstatReportList", "Keyword",
+        "ModerateBanners", "PayCampaigns", "PayCampaignsByCard", "PingAPI",
+        "PingAPI_X", "ResumeBanners", "ResumeCampaign", "Retargeting",
+        "RetargetingCondition", "SetAutoPrice", "StopBanners", "StopCampaign",
+        "TransferMoney", "UnArchiveBanners", "UnArchiveCampaign",
+        "UpdateBannersTags", "UpdateCampaignsTags", "UpdateClientInfo",
+        "UpdatePrices",
+    }
+    missing = known_v4_live_ops - set(audit_wsdl.V4_TO_V5_MAP)
+    assert not missing, (
+        f"V4_TO_V5_MAP must classify every known v4 / v4 Live WSDL operation. "
+        f"Add entries for: {sorted(missing)}"
+    )
