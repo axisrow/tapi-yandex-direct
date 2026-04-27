@@ -297,7 +297,7 @@ def test_classify_v4_method_returns_unclassified_for_unknown():
 
 def test_v4_method_priority_high_for_issue_mentioned_actual():
     assert audit_wsdl.v4_method_priority(
-        "GetBalance", "actual_no_v5_analogue"
+        "GetClientsUnits", "actual_no_v5_analogue"
     ) == "high"
     # An actual method NOT in the issue hints AND not in V4_NO_BUSINESS_VALUE
     # should be medium. AdImageAssociation maps to None, is not in hints, and
@@ -321,8 +321,8 @@ def test_discover_v4_wsdl_services_uses_monolithic_endpoints(monkeypatch):
     def fake_fetch(url, timeout):
         fetched.append(url)
         if "live" in url:
-            return ({"GetEventsLog", "AccountManagement", "GetBalance"}, True)
-        return ({"GetBalance", "GetCampaignsList"}, True)
+            return ({"GetEventsLog", "AccountManagement", "GetClientsUnits"}, True)
+        return ({"GetClientsUnits", "GetCampaignsList"}, True)
 
     monkeypatch.setattr(audit_wsdl, "fetch_wsdl_operations", fake_fetch)
 
@@ -332,15 +332,15 @@ def test_discover_v4_wsdl_services_uses_monolithic_endpoints(monkeypatch):
     assert [s.version for s in services] == ["v4", "v4live"]
     assert services[0].wsdl_url == audit_wsdl.V4_WSDL_URL
     assert services[1].wsdl_url == audit_wsdl.V4_LIVE_WSDL_URL
-    assert services[0].methods == {"GetBalance", "GetCampaignsList"}
-    assert services[1].methods == {"GetEventsLog", "AccountManagement", "GetBalance"}
+    assert services[0].methods == {"GetClientsUnits", "GetCampaignsList"}
+    assert services[1].methods == {"GetEventsLog", "AccountManagement", "GetClientsUnits"}
 
 
 def test_discover_v4_wsdl_services_skips_unavailable(monkeypatch, capsys):
     def fake_fetch(url, timeout):
         if "live" in url:
             return (set(), False)
-        return ({"GetBalance"}, True)
+        return ({"GetClientsUnits"}, True)
 
     monkeypatch.setattr(audit_wsdl, "fetch_wsdl_operations", fake_fetch)
 
@@ -358,7 +358,7 @@ def test_build_v4_matrix_includes_priority_and_v5_equivalent():
         name="v4",
         endpoint="v4_monolithic",
         docs_url="",
-        methods={"GetCampaignsList", "GetBalance"},
+        methods={"GetCampaignsList", "GetClientsUnits", "GetBalance"},
         wsdl_url=audit_wsdl.V4_WSDL_URL,
         soap_url="https://api.direct.yandex.ru/v4/",
         json_url=None,
@@ -368,7 +368,10 @@ def test_build_v4_matrix_includes_priority_and_v5_equivalent():
         name="v4live",
         endpoint="v4_live_monolithic",
         docs_url="",
-        methods={"GetCampaignsList", "GetBalance", "AccountManagement", "BogusUnclassifiedOp"},
+        methods={
+            "GetCampaignsList", "GetClientsUnits", "GetBalance",
+            "AccountManagement", "BogusUnclassifiedOp",
+        },
         wsdl_url=audit_wsdl.V4_LIVE_WSDL_URL,
         soap_url="https://api.direct.yandex.ru/live/v4/",
         json_url=None,
@@ -383,10 +386,14 @@ def test_build_v4_matrix_includes_priority_and_v5_equivalent():
     assert "deprecated_with_v5_replacement" in matrix
     assert "low" in matrix
     # Actual + high priority (issue-mentioned)
-    assert "`GetBalance`" in matrix
+    assert "`GetClientsUnits`" in matrix
     assert "actual_no_v5_analogue" in matrix
     assert "high" in matrix
     assert "`AccountManagement`" in matrix
+    # GetBalance — removed by Yandex from v4 Live, surfaces in its own section
+    assert "`GetBalance`" in matrix
+    assert "removed_from_v4_live" in matrix
+    assert "Removed from v4 Live" in matrix
     # Availability column
     assert "v4 + Live" in matrix
     assert "Live only" in matrix
@@ -433,13 +440,35 @@ def test_v4_to_v5_map_covers_all_known_v4_live_operations():
         "UpdateBannersTags", "UpdateCampaignsTags", "UpdateClientInfo",
         "UpdatePrices",
     }
-    missing = known_v4_live_ops - set(audit_wsdl.V4_TO_V5_MAP)
+    classified = set(audit_wsdl.V4_TO_V5_MAP) | set(audit_wsdl.V4_REMOVED_FROM_LIVE)
+    missing = known_v4_live_ops - classified
     assert not missing, (
-        f"V4_TO_V5_MAP must classify every known v4 / v4 Live WSDL operation. "
-        f"Add entries for: {sorted(missing)}"
+        f"Every known v4 / v4 Live WSDL operation must be classified — either "
+        f"in V4_TO_V5_MAP or in V4_REMOVED_FROM_LIVE. Missing: {sorted(missing)}"
     )
-    extra = set(audit_wsdl.V4_TO_V5_MAP) - known_v4_live_ops
+    extra = classified - known_v4_live_ops
     assert not extra, (
-        f"V4_TO_V5_MAP contains entries not in known_v4_live_ops "
-        f"(possible typos in keys): {sorted(extra)}"
+        f"V4_TO_V5_MAP / V4_REMOVED_FROM_LIVE contain entries not in "
+        f"known_v4_live_ops (possible typos in keys): {sorted(extra)}"
     )
+    # The two sets must be disjoint. classify_v4_method silently prefers
+    # V4_REMOVED_FROM_LIVE on overlap, so without this guard a method
+    # accidentally re-added to V4_TO_V5_MAP would still classify as
+    # "removed_from_v4_live" and the desync would go unnoticed.
+    overlap = set(audit_wsdl.V4_TO_V5_MAP) & set(audit_wsdl.V4_REMOVED_FROM_LIVE)
+    assert not overlap, (
+        f"Methods must not appear in both V4_TO_V5_MAP and "
+        f"V4_REMOVED_FROM_LIVE: {sorted(overlap)}"
+    )
+
+
+def test_classify_v4_method_returns_removed_for_disabled_method():
+    # GetBalance is still in the v4 / v4 Live WSDL, but Yandex disabled it
+    # server-side (returns error_code 509). It must be surfaced via its own
+    # status, not silently treated as a candidate.
+    status, v5_eq = audit_wsdl.classify_v4_method("GetBalance")
+    assert status == "removed_from_v4_live"
+    assert v5_eq is None
+    assert audit_wsdl.v4_method_priority(
+        "GetBalance", "removed_from_v4_live"
+    ) == "skip"

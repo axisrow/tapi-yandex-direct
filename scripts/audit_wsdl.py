@@ -179,7 +179,6 @@ V4_TO_V5_MAP: dict[str, str | None] = {
     "GetKeywordsSuggestion":  None,
     # ===== CANDIDATES FOR IMPLEMENTATION (no v5 equivalent) =====
     "GetClientsUnits":        None,  # client points balance — v4-only
-    "GetBalance":             None,  # campaign balance — v4-only
     "GetCreditLimits":        None,
     "TransferMoney":          None,
     "PayCampaigns":           None,
@@ -204,7 +203,7 @@ V4_TO_V5_MAP: dict[str, str | None] = {
 # Methods explicitly mentioned by the issue author as relevant / actual.
 # Used to bump priority of unmapped methods to "high".
 V4_HIGH_PRIORITY_HINTS: frozenset[str] = frozenset({
-    "GetBalance", "GetClientsUnits", "GetCreditLimits",
+    "GetClientsUnits", "GetCreditLimits",
     "TransferMoney", "PayCampaigns", "PayCampaignsByCard",
     "CreateInvoice", "AccountManagement", "EnableSharedAccount",
     "GetEventsLog", "GetStatGoals", "GetRetargetingGoals",
@@ -222,16 +221,29 @@ V4_NO_BUSINESS_VALUE: frozenset[str] = frozenset({
     "PingAPI", "PingAPI_X", "GetVersion", "GetAvailableVersions",
 })
 
+# Methods that still appear in the v4 / v4 Live WSDL but have been disabled
+# server-side by Yandex — calls return error_code=509
+# ("This method is not available in this API version"). Verified live
+# 2026-04-27. Keep here so the matrix can surface them honestly instead of
+# advertising them as implementation candidates. v5 alternatives noted in
+# README.
+V4_REMOVED_FROM_LIVE: frozenset[str] = frozenset({
+    "GetBalance",
+})
+
 
 def classify_v4_method(method: str) -> tuple[str, str | None]:
     """Classify a v4 / v4 Live operation against v5.
 
     Returns a (status, v5_equivalent) tuple. Status is one of:
+      - "removed_from_v4_live" — method was disabled server-side (error_code 509).
       - "deprecated_with_v5_replacement" — method has a direct v5 analogue.
       - "actual_no_v5_analogue" — method is in V4_TO_V5_MAP with value None
         (= explicitly classified as "no v5 equivalent, candidate to implement").
       - "unclassified" — method is missing from V4_TO_V5_MAP entirely.
     """
+    if method in V4_REMOVED_FROM_LIVE:
+        return ("removed_from_v4_live", None)
     if method not in V4_TO_V5_MAP:
         return ("unclassified", None)
     v5_eq = V4_TO_V5_MAP[method]
@@ -242,6 +254,8 @@ def classify_v4_method(method: str) -> tuple[str, str | None]:
 
 def v4_method_priority(method: str, status: str) -> str:
     """Return priority label for a v4 method."""
+    if status == "removed_from_v4_live":
+        return "skip"
     if status == "actual_no_v5_analogue":
         if method in V4_NO_BUSINESS_VALUE:
             return "low"
@@ -885,6 +899,7 @@ def build_v4_matrix(v4_services: list[DiscoveredService]) -> str:
     n_actual = sum(1 for r in rows if r["status"] == "actual_no_v5_analogue")
     n_dep = sum(1 for r in rows if r["status"] == "deprecated_with_v5_replacement")
     n_unclassified = sum(1 for r in rows if r["status"] == "unclassified")
+    n_removed = sum(1 for r in rows if r["status"] == "removed_from_v4_live")
     n_high = sum(1 for r in rows if r["priority"] == "high")
     n_medium = sum(1 for r in rows if r["priority"] == "medium")
 
@@ -899,6 +914,7 @@ def build_v4_matrix(v4_services: list[DiscoveredService]) -> str:
         "Status semantics:",
         "- **deprecated_with_v5_replacement** — direct v5 analogue exists; new code should use v5.",
         "- **actual_no_v5_analogue** — no v5 equivalent; candidate for implementation in this library.",
+        "- **removed_from_v4_live** — operation is in the WSDL but Yandex disabled it server-side (error_code 509); use the v5 client.",
         "- **unclassified** — not yet classified in `V4_TO_V5_MAP`; needs review.",
         "",
         "## Summary",
@@ -911,6 +927,7 @@ def build_v4_matrix(v4_services: list[DiscoveredService]) -> str:
         f"| Operations available only in v4 (not Live) | {sum(1 for r in rows if r['availability'] == 'v4 only')} |",
         f"| Status: deprecated_with_v5_replacement | {n_dep} |",
         f"| Status: actual_no_v5_analogue (candidates) | {n_actual} |",
+        f"| Status: removed_from_v4_live | {n_removed} |",
         f"| Status: unclassified (needs review) | {n_unclassified} |",
         f"| Priority: high (issue-mentioned candidates) | {n_high} |",
         f"| Priority: medium (other actual candidates) | {n_medium} |",
@@ -945,6 +962,20 @@ def build_v4_matrix(v4_services: list[DiscoveredService]) -> str:
             )
     else:
         lines.append("_No candidates — every method is either deprecated or unclassified._")
+
+    if n_removed > 0:
+        lines += [
+            "",
+            "## Removed from v4 Live",
+            "",
+            "These operations are still present in the WSDL but Yandex disabled them "
+            "server-side. Calling them returns `V4LiveError(error_code=509)`. "
+            "Use the v5 client (`YandexDirect`) for the equivalent functionality.",
+            "",
+        ]
+        for row in rows:
+            if row["status"] == "removed_from_v4_live":
+                lines.append(f"- `{row['method']}` ({row['availability']})")
 
     if n_unclassified > 0:
         lines += [

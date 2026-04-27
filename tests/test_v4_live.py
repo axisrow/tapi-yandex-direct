@@ -18,7 +18,7 @@ V4_LIVE_SANDBOX_URL = "https://api-sandbox.direct.yandex.ru/live/v4/json/"
 def _make_client(**overrides):
     defaults = dict(
         access_token="test-token",
-        login="ksamatadirect",
+        login="test-login",
         is_sandbox=False,
         language="en",
         retry_if_exceeded_limit=False,
@@ -38,14 +38,14 @@ def test_v4live_post_success_returns_data():
     responses.add(
         responses.POST,
         V4_LIVE_URL,
-        json={"data": [{"UnitsRest": 32000, "Login": "ksamatadirect"}]},
+        json={"data": [{"UnitsRest": 32000, "Login": "test-login"}]},
         status=200,
     )
     client = _make_client()
     result = client.v4live().post(
-        data={"method": "GetClientsUnits", "param": ["ksamatadirect"]}
+        data={"method": "GetClientsUnits", "param": ["test-login"]}
     )
-    assert result.data == {"data": [{"UnitsRest": 32000, "Login": "ksamatadirect"}]}
+    assert result.data == {"data": [{"UnitsRest": 32000, "Login": "test-login"}]}
 
 
 @responses.activate

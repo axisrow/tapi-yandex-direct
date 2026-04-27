@@ -523,6 +523,71 @@ except V4LiveError as e:
 | `error_code` type | string | integer |
 | Pagination | `LimitedBy` in result, offset injection | per-method (`Limit`, `TimestampFrom`, …) — single-shot at the adapter level |
 
+### Methods removed from v4 Live by Yandex
+
+`GetBalance` is still in the v4 Live WSDL but Yandex disabled it server-side
+— calling it returns `V4LiveError(error_code=509, error_str="This method is
+not available in this API version")`. Use the v5 client instead:
+
+```python
+from tapi_yandex_direct import YandexDirect
+client = YandexDirect(access_token=ACCESS_TOKEN)
+campaigns = client.campaigns().post(data={
+    "method": "get",
+    "params": {
+        "SelectionCriteria": {"Ids": [<campaign_id>]},
+        "FieldNames": ["Id", "Funds"],   # Funds carries the campaign balance
+    },
+})
+```
+
+### Finance methods (financial_token required)
+
+`GetCreditLimits`, `TransferMoney`, `PayCampaigns`, `PayCampaignsByCard`,
+`CheckPayment` and `CreateInvoice` are finance operations and reject the
+regular OAuth `access_token` with `V4LiveError(error_code=350, error_str=
+"Invalid financial transaction token")`. Yandex requires a separate
+**financial token** generated from the OAuth client secret + login +
+operation number — see
+<https://yandex.com/dev/direct/doc/dg-v4/en/concepts/finance>. Pass it
+explicitly inside the `param` block of the request:
+
+```python
+client.v4live().post(data={
+    "method": "TransferMoney",
+    "param": {
+        "Login": "<login>",
+        "OperationNum": <int>,
+        "FinanceToken": "<finance-token>",
+        # ... other method-specific fields ...
+    },
+})
+```
+
+The library does **not** generate finance tokens for you — that flow involves
+the OAuth client secret and is out of scope. See the issue body of #18 for
+the verified live-API behaviour of every supported method.
+
+### Common request schemas
+
+The full call schemas come from
+<https://yandex.com/dev/direct/doc/dg-v4/en/live/concepts>. A few that trip
+up newcomers (verified live):
+
+| Method | Required `param` shape |
+|---|---|
+| `GetClientsUnits` | list of logins, e.g. `["my-login"]` |
+| `GetRetargetingGoals` | `{"Login": "my-login"}` |
+| `GetStatGoals` | `{"CampaignIDS": [<int>, ...]}` (capital S) |
+| `GetCampaignsTags` | `{"CampaignIDS": [<int>, ...]}` |
+| `GetBannersTags` | `{"BannerIDS": [<int>, ...]}` |
+| `GetEventsLog` | `{"TimestampFrom": "<ISO 8601>", "Currency": "RUB"\|"USD"\|...}` |
+| `GetKeywordsSuggestion` | `{"Keywords": ["phrase 1", ...]}` |
+
+`tests/test_v4_live_integration.py` exercises each of these against the real
+API as living documentation — run with `pytest -m live` and a token in
+`YANDEX_DIRECT_TOKEN`.
+
 
 ## Features
 

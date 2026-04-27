@@ -18,9 +18,10 @@ RESOURCE_MAPPING_V4_LIVE = {
 
 
 SUPPORTED_V4_METHODS: dict[str, dict] = {
-    # Finance — high priority candidates from the matrix
+    # Finance — high priority candidates from the matrix.
+    # Note: GetBalance was removed by Yandex from v4 Live (error_code 509);
+    # use the v5 client and read campaigns.get → Funds instead.
     "GetClientsUnits":         {"group": "finance"},
-    "GetBalance":              {"group": "finance"},
     "GetCreditLimits":         {"group": "finance"},
     "TransferMoney":           {"group": "finance"},
     "PayCampaigns":            {"group": "finance"},

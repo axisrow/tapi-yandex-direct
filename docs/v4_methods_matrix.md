@@ -8,6 +8,7 @@ Source of truth: live WSDL endpoints
 Status semantics:
 - **deprecated_with_v5_replacement** — direct v5 analogue exists; new code should use v5.
 - **actual_no_v5_analogue** — no v5 equivalent; candidate for implementation in this library.
+- **removed_from_v4_live** — operation is in the WSDL but Yandex disabled it server-side (error_code 509); use the v5 client.
 - **unclassified** — not yet classified in `V4_TO_V5_MAP`; needs review.
 
 ## Summary
@@ -19,9 +20,10 @@ Status semantics:
 | Operations available in both v4 and Live | 57 |
 | Operations available only in v4 (not Live) | 0 |
 | Status: deprecated_with_v5_replacement | 41 |
-| Status: actual_no_v5_analogue (candidates) | 33 |
+| Status: actual_no_v5_analogue (candidates) | 32 |
+| Status: removed_from_v4_live | 1 |
 | Status: unclassified (needs review) | 0 |
-| Priority: high (issue-mentioned candidates) | 20 |
+| Priority: high (issue-mentioned candidates) | 19 |
 | Priority: medium (other actual candidates) | 9 |
 
 ## Full method table
@@ -50,7 +52,7 @@ Status semantics:
 | 20 | `DeleteWordstatReport` | v4 + Live | actual_no_v5_analogue | — | high |
 | 21 | `EnableSharedAccount` | Live only | actual_no_v5_analogue | — | high |
 | 22 | `GetAvailableVersions` | v4 + Live | actual_no_v5_analogue | — | low |
-| 23 | `GetBalance` | v4 + Live | actual_no_v5_analogue | — | high |
+| 23 | `GetBalance` | v4 + Live | removed_from_v4_live | — | skip |
 | 24 | `GetBannerPhrases` | v4 + Live | deprecated_with_v5_replacement | `keywords.get` | low |
 | 25 | `GetBannerPhrasesFilter` | v4 + Live | deprecated_with_v5_replacement | `keywords.get` | low |
 | 26 | `GetBanners` | v4 + Live | deprecated_with_v5_replacement | `ads.get` | low |
@@ -116,29 +118,34 @@ Methods with no v5 analogue, sorted by priority (high → medium):
 | 5 | `DeleteForecastReport` | v4 + Live | high |
 | 6 | `DeleteWordstatReport` | v4 + Live | high |
 | 7 | `EnableSharedAccount` | Live only | high |
-| 8 | `GetBalance` | v4 + Live | high |
-| 9 | `GetClientsUnits` | v4 + Live | high |
-| 10 | `GetCreditLimits` | v4 + Live | high |
-| 11 | `GetEventsLog` | Live only | high |
-| 12 | `GetForecast` | v4 + Live | high |
-| 13 | `GetForecastList` | v4 + Live | high |
-| 14 | `GetRetargetingGoals` | Live only | high |
-| 15 | `GetStatGoals` | v4 + Live | high |
-| 16 | `GetWordstatReport` | v4 + Live | high |
-| 17 | `GetWordstatReportList` | v4 + Live | high |
-| 18 | `PayCampaigns` | v4 + Live | high |
-| 19 | `PayCampaignsByCard` | v4 + Live | high |
-| 20 | `TransferMoney` | v4 + Live | high |
-| 21 | `AdImageAssociation` | Live only | medium |
-| 22 | `CheckPayment` | v4 + Live | medium |
-| 23 | `DeleteOfflineReport` | Live only | medium |
-| 24 | `DeleteReport` | v4 + Live | medium |
-| 25 | `GetAvailableVersions` | v4 + Live | low |
-| 26 | `GetBannersTags` | Live only | medium |
-| 27 | `GetCampaignsTags` | Live only | medium |
-| 28 | `GetKeywordsSuggestion` | v4 + Live | medium |
-| 29 | `GetVersion` | v4 + Live | low |
-| 30 | `PingAPI` | v4 + Live | low |
-| 31 | `PingAPI_X` | v4 + Live | low |
-| 32 | `UpdateBannersTags` | Live only | medium |
-| 33 | `UpdateCampaignsTags` | Live only | medium |
+| 8 | `GetClientsUnits` | v4 + Live | high |
+| 9 | `GetCreditLimits` | v4 + Live | high |
+| 10 | `GetEventsLog` | Live only | high |
+| 11 | `GetForecast` | v4 + Live | high |
+| 12 | `GetForecastList` | v4 + Live | high |
+| 13 | `GetRetargetingGoals` | Live only | high |
+| 14 | `GetStatGoals` | v4 + Live | high |
+| 15 | `GetWordstatReport` | v4 + Live | high |
+| 16 | `GetWordstatReportList` | v4 + Live | high |
+| 17 | `PayCampaigns` | v4 + Live | high |
+| 18 | `PayCampaignsByCard` | v4 + Live | high |
+| 19 | `TransferMoney` | v4 + Live | high |
+| 20 | `AdImageAssociation` | Live only | medium |
+| 21 | `CheckPayment` | v4 + Live | medium |
+| 22 | `DeleteOfflineReport` | Live only | medium |
+| 23 | `DeleteReport` | v4 + Live | medium |
+| 24 | `GetAvailableVersions` | v4 + Live | low |
+| 25 | `GetBannersTags` | Live only | medium |
+| 26 | `GetCampaignsTags` | Live only | medium |
+| 27 | `GetKeywordsSuggestion` | v4 + Live | medium |
+| 28 | `GetVersion` | v4 + Live | low |
+| 29 | `PingAPI` | v4 + Live | low |
+| 30 | `PingAPI_X` | v4 + Live | low |
+| 31 | `UpdateBannersTags` | Live only | medium |
+| 32 | `UpdateCampaignsTags` | Live only | medium |
+
+## Removed from v4 Live
+
+These operations are still present in the WSDL but Yandex disabled them server-side. Calling them returns `V4LiveError(error_code=509)`. Use the v5 client (`YandexDirect`) for the equivalent functionality.
+
+- `GetBalance` (v4 + Live)
