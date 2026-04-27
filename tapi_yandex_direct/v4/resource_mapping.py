@@ -55,6 +55,8 @@ SUPPORTED_V4_METHODS: dict[str, dict] = {
     "UpdateCampaignsTags":     {"group": "tags"},
     # Ad image association
     "AdImageAssociation":      {"group": "ad_image"},
+    # Keyword suggestions — phrase-suggestion engine, no real v5 analogue
+    "GetKeywordsSuggestion":   {"group": "keywords"},
     # API meta
     "PingAPI":                 {"group": "meta"},
     "PingAPI_X":               {"group": "meta"},
