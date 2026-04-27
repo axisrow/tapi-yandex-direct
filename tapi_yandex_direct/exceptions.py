@@ -82,7 +82,10 @@ class V4LiveError(YandexDirectApiError):
         **kwargs,
     ):
         if isinstance(message, dict):
-            self.error_code = int(message.get("error_code", 0))
+            try:
+                self.error_code = int(message.get("error_code", 0))
+            except (TypeError, ValueError):
+                self.error_code = 0
             self.error_str = message.get("error_str", "")
             self.error_detail = message.get("error_detail", "")
         else:

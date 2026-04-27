@@ -178,9 +178,15 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
 
         return False
 
-    def extract(self, data, response: Response, request_kwargs: dict, **kwargs):
+    def extract(self, data, response: Optional[Response] = None,
+                request_kwargs: Optional[dict] = None, **kwargs):
         # v4 Live always nests payload under "data". For methods returning a
         # bare scalar (TransferMoney → 1), the scalar comes through unchanged.
+        # response / request_kwargs are accepted but unused — they are kept
+        # only so the tapi2 framework can pass them positionally from
+        # YandexDirectClientResponse.extract(). Iterator hooks
+        # (get_iterator_pages / _items / _iteritems) call extract via **kwargs
+        # without these arguments, so defaults are required.
         if isinstance(data, dict) and "data" in data:
             return data["data"]
         return data

@@ -193,6 +193,26 @@ def test_v4live_arbitrary_error_raises_v4live_error():
 
 
 @responses.activate
+def test_v4live_pages_and_items_do_not_raise_type_error():
+    # Iterator hooks (get_iterator_pages / _items / _iteritems) call
+    # self.extract via **kwargs without response / request_kwargs. extract's
+    # signature therefore accepts both as optional — otherwise .items() /
+    # .pages() raise "extract() missing 2 required positional arguments".
+    responses.add(
+        responses.POST,
+        V4_LIVE_URL,
+        json={"data": [{"id": 1}, {"id": 2}]},
+        status=200,
+    )
+    client = _make_client()
+    result = client.v4live().post(
+        data={"method": "GetClientsUnits", "param": []}
+    )
+    items = list(result().items())
+    assert items == [{"id": 1}, {"id": 2}]
+
+
+@responses.activate
 def test_v4live_malformed_error_code_treated_as_success():
     # Defensive cast in process_response: if Yandex ever returned
     # error_code=null or a non-numeric string, the response should be treated
