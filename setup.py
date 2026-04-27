@@ -33,7 +33,7 @@ setup(
     author="Pavel Maksimov",
     author_email="vur21@ya.ru",
     url="https://github.com/pavelmaksimov/tapi-yandex-direct",
-    packages=[package],
+    packages=[package, f"{package}.v4"],
     include_package_data=False,
     install_requires=["requests", "orjson", "tapi-wrapper2>=0.1.2,<1.0"],
     python_requires=">=3.9",
@@ -52,5 +52,6 @@ setup(
     test_suite="tests",
     package_data={
         package: ["*"],
+        f"{package}.v4": ["*.pyi"],
     },
 )
