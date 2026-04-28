@@ -54,3 +54,8 @@ docs/_build
 
 # Git worktrees
 .worktrees/
+
+# Local agent files
+.claude/
+AGENTS.md
+CLAUDE.md
