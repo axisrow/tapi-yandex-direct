@@ -6,6 +6,7 @@ Run locally with::
 
     export YANDEX_DIRECT_TOKEN=...   (real OAuth token)
     export YANDEX_DIRECT_LOGIN=...   (account login)
+    export YANDEX_DIRECT_SANDBOX=1   (optional; use sandbox endpoints)
     pytest tests/test_v4_live_integration.py -v -m live
 
 The probes intentionally cover only **read-only** v4 Live operations and one
@@ -34,6 +35,8 @@ def v4_kwargs() -> dict:
     return {
         "access_token": os.environ["YANDEX_DIRECT_TOKEN"],
         "login": os.environ["YANDEX_DIRECT_LOGIN"],
+        "is_sandbox": os.environ.get("YANDEX_DIRECT_SANDBOX", "").lower()
+        in {"1", "true", "yes"},
     }
 
 
@@ -50,29 +53,36 @@ def real_ids(v4_kwargs) -> dict:
     v4 Live tag/goal probes need real entities; v5 is the cleanest source.
     """
     from tapi_yandex_direct import YandexDirect
+    from tapi_yandex_direct import exceptions as exc
 
     v5 = YandexDirect(**v4_kwargs)
-    camps = v5.campaigns().post(data={
-        "method": "get",
-        "params": {
-            "SelectionCriteria": {},
-            "FieldNames": ["Id"],
-            "Page": {"Limit": 1},
-        },
-    })
+    try:
+        camps = v5.campaigns().post(data={
+            "method": "get",
+            "params": {
+                "SelectionCriteria": {},
+                "FieldNames": ["Id"],
+                "Page": {"Limit": 1},
+            },
+        })
+    except exc.YandexDirectClientError as err:
+        pytest.skip(f"could not resolve real campaign ids via v5: {err}")
     camp_list = camps().extract()
     if not camp_list:
         pytest.skip("account has no campaigns to probe against")
     cid: int = camp_list[0]["Id"]
 
-    ads = v5.ads().post(data={
-        "method": "get",
-        "params": {
-            "SelectionCriteria": {"CampaignIds": [cid]},
-            "FieldNames": ["Id"],
-            "Page": {"Limit": 1},
-        },
-    })
+    try:
+        ads = v5.ads().post(data={
+            "method": "get",
+            "params": {
+                "SelectionCriteria": {"CampaignIds": [cid]},
+                "FieldNames": ["Id"],
+                "Page": {"Limit": 1},
+            },
+        })
+    except exc.YandexDirectClientError as err:
+        pytest.skip(f"could not resolve real banner ids via v5: {err}")
     ads_list = ads().extract()
     bid = ads_list[0]["Id"] if ads_list else None
     return {"campaign_id": cid, "banner_id": bid}
@@ -89,17 +99,6 @@ def test_get_clients_units(v4_client, v4_kwargs):
     assert isinstance(extracted, list) and extracted
     assert extracted[0]["Login"] == v4_kwargs["login"]
     assert isinstance(extracted[0]["UnitsRest"], int)
-
-
-@pytest.mark.live
-def test_get_retargeting_goals(v4_client, v4_kwargs):
-    res = v4_client.v4live().post(data={
-        "method": "GetRetargetingGoals", "param": {"Login": v4_kwargs["login"]},
-    })
-    goals = res().extract()
-    assert isinstance(goals, list)
-    if goals:
-        assert "GoalID" in goals[0]
 
 
 @pytest.mark.live
@@ -131,6 +130,19 @@ def test_get_stat_goals(v4_client, real_ids):
     if extracted:
         assert "GoalID" in extracted[0]
         assert extracted[0]["CampaignID"] == real_ids["campaign_id"]
+
+
+@pytest.mark.live
+def test_get_retargeting_goals(v4_client, v4_kwargs):
+    """Per live JSON docs: GetRetargetingGoals uses Logins."""
+    res = v4_client.v4live().post(data={
+        "method": "GetRetargetingGoals",
+        "param": {"Logins": [v4_kwargs["login"]]},
+    })
+    goals = res().extract()
+    assert isinstance(goals, list)
+    if goals:
+        assert "GoalID" in goals[0]
 
 
 @pytest.mark.live
@@ -168,12 +180,15 @@ def test_get_banners_tags(v4_client, real_ids):
 # ------- methods with non-trivial schemas -------
 
 @pytest.mark.live
-def test_get_events_log(v4_client):
+def test_get_events_log(v4_client, v4_kwargs):
     """Per docs: TimestampFrom must be ISO 8601 AND Currency is required."""
     ts = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    param = {"TimestampFrom": ts, "Currency": "RUB", "Limit": 3}
+    if v4_kwargs["is_sandbox"]:
+        param["Logins"] = [v4_kwargs["login"]]
     res = v4_client.v4live().post(data={
         "method": "GetEventsLog",
-        "param": {"TimestampFrom": ts, "Currency": "RUB", "Limit": 3},
+        "param": param,
     })
     events = res().extract()
     assert isinstance(events, list)
