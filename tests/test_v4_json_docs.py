@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from tapi_yandex_direct.v4 import SUPPORTED_V4_METHODS
 from tapi_yandex_direct.v4.adapter import V4LiveClientAdapter
@@ -15,6 +16,8 @@ AUDIT_SCRIPT_PATH = ROOT / "scripts" / "audit_v4_json_docs.py"
 
 
 spec = importlib.util.spec_from_file_location("audit_v4_json_docs", AUDIT_SCRIPT_PATH)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load audit_v4_json_docs from {AUDIT_SCRIPT_PATH}")
 audit_v4_json_docs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit_v4_json_docs)
 
@@ -43,6 +46,47 @@ def _field_names(contract: dict) -> set[str]:
 
 def test_v4_json_docs_snapshot_is_internally_valid():
     assert audit_v4_json_docs.validate_snapshot(_snapshot()) == []
+
+
+def test_v4_json_docs_snapshot_reports_missing_method_without_crashing():
+    snapshot = {
+        "contracts": [
+            {
+                "variant": "live",
+                "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/Broken",
+                "request": {"method": "Broken"},
+                "param_shape": "object",
+                "param_fields": [],
+                "required_fields": [],
+            }
+        ]
+    }
+
+    errors = audit_v4_json_docs.validate_snapshot(snapshot)
+
+    assert "contracts[0] missing method" in errors
+
+
+def test_v4_json_docs_refresh_refuses_non_official_urls_before_fetch():
+    snapshot = {
+        "contracts": [
+            {
+                "method": "GetEventsLog",
+                "source_url": "https://example.com/not-yandex",
+                "param_fields": [],
+            }
+        ]
+    }
+
+    with patch.object(audit_v4_json_docs, "_fetch_text") as fetch_text:
+        try:
+            audit_v4_json_docs.refresh_from_online(snapshot, timeout=1)
+        except ValueError as err:
+            assert "Refusing to fetch unexpected URL" in str(err)
+        else:
+            raise AssertionError("refresh_from_online accepted a non-official URL")
+
+    fetch_text.assert_not_called()
 
 
 def test_v4_json_docs_snapshot_covers_supported_methods():

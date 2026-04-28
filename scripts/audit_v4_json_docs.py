@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = ROOT / "docs" / "v4_json_contracts.json"
 DEFAULT_MATRIX = ROOT / "docs" / "v4_methods_matrix.md"
 AUDIT_WSDL = ROOT / "scripts" / "audit_wsdl.py"
+OFFICIAL_V4_DOCS_PREFIX = "https://yandex.com/dev/direct/doc/dg-v4/en/"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -99,7 +100,7 @@ def validate_snapshot(
     grouped = contracts_by_method(snapshot)
 
     missing = sorted(set(supported) - set(grouped))
-    stale = sorted(set(grouped) - set(supported))
+    stale = sorted(key for key in set(grouped) - set(supported) if key is not None)
     if missing:
         errors.append(f"Snapshot misses supported methods: {missing}")
     if stale:
@@ -134,9 +135,7 @@ def validate_snapshot(
             errors.append(f"{label} missing method")
         if variant not in VALID_VARIANTS:
             errors.append(f"{label} has invalid variant {variant!r}")
-        if not str(contract.get("source_url", "")).startswith(
-            "https://yandex.com/dev/direct/doc/dg-v4/en/"
-        ):
+        if not str(contract.get("source_url", "")).startswith(OFFICIAL_V4_DOCS_PREFIX):
             errors.append(f"{label} has invalid source_url")
         request = contract.get("request")
         if not isinstance(request, dict) or request.get("method") != method:
@@ -169,7 +168,10 @@ def _fetch_text(url: str, timeout: int) -> str:
 def refresh_from_online(snapshot: dict[str, Any], *, timeout: int) -> dict[str, Any]:
     refreshed = json.loads(json.dumps(snapshot))
     for contract in refreshed.get("contracts", []):
-        html = _fetch_text(contract["source_url"], timeout)
+        source_url = contract["source_url"]
+        if not str(source_url).startswith(OFFICIAL_V4_DOCS_PREFIX):
+            raise ValueError(f"Refusing to fetch unexpected URL: {source_url!r}")
+        html = _fetch_text(source_url, timeout)
         contract["online_check"] = {
             "fetched_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
             "method_found": contract["method"] in html,
