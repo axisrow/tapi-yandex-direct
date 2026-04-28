@@ -178,7 +178,11 @@ def refresh_from_online(snapshot: dict[str, Any], *, timeout: int) -> dict[str, 
             "fields_found": [
                 field["name"]
                 for field in contract.get("param_fields", [])
-                if isinstance(field, dict) and field.get("name") in html
+                if (
+                    isinstance(field, dict)
+                    and isinstance(field.get("name"), str)
+                    and field["name"] in html
+                )
             ],
         }
     refreshed.setdefault("metadata", {})["refreshed_at"] = (

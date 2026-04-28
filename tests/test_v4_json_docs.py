@@ -89,6 +89,33 @@ def test_v4_json_docs_refresh_refuses_non_official_urls_before_fetch():
     fetch_text.assert_not_called()
 
 
+def test_v4_json_docs_refresh_ignores_fields_without_names():
+    snapshot = {
+        "contracts": [
+            {
+                "method": "GetEventsLog",
+                "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetEventsLog",
+                "param_fields": [
+                    {},
+                    {"name": None},
+                    {"name": "TimestampFrom"},
+                ],
+            }
+        ]
+    }
+
+    with patch.object(
+        audit_v4_json_docs,
+        "_fetch_text",
+        return_value="TimestampFrom Currency",
+    ):
+        refreshed = audit_v4_json_docs.refresh_from_online(snapshot, timeout=1)
+
+    assert refreshed["contracts"][0]["online_check"]["fields_found"] == [
+        "TimestampFrom"
+    ]
+
+
 def test_v4_json_docs_snapshot_covers_supported_methods():
     grouped = audit_v4_json_docs.contracts_by_method(_snapshot())
 
