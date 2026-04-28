@@ -44,9 +44,10 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
         login = api_params.get("login")
         language = api_params.get("language", "en")
 
-        # Enrich the JSON body with token / locale / login (param.login for
-        # agent calls). format_data_to_request does not see api_params, so we
-        # do this here, after super() has already serialised the user data.
+        # Enrich the JSON body with token / locale. format_data_to_request does
+        # not see api_params, so we do this here, after super() has already
+        # serialised the user data. Agency/client selection is transport-level
+        # (Client-Login header); method params must stay schema-shaped.
         raw = params.get("data")
         if raw:
             if isinstance(raw, (bytes, bytearray)):
@@ -66,13 +67,14 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
                 body.setdefault("token", token)
             if language:
                 body.setdefault("locale", language)
-            if login and isinstance(body.get("param"), dict):
-                body["param"].setdefault("login", login)
 
             params["data"] = orjson.dumps(body)
 
         if token:
             params["headers"]["Authorization"] = "Bearer {}".format(token)
+
+        if login:
+            params["headers"]["Client-Login"] = login
 
         return params
 
