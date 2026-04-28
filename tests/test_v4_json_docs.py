@@ -105,6 +105,8 @@ def test_v4_json_docs_snapshot_covers_supported_methods():
 def test_supported_v4_methods_are_no_v5_analogue_in_wsdl_audit():
     audit_wsdl_path = ROOT / "scripts" / "audit_wsdl.py"
     spec = importlib.util.spec_from_file_location("audit_wsdl", audit_wsdl_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load audit_wsdl from {audit_wsdl_path}")
     audit_wsdl = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(audit_wsdl)
 
