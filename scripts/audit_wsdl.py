@@ -13,6 +13,8 @@ Usage:
     python scripts/audit_wsdl.py --issue
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import re
