@@ -116,6 +116,27 @@ def test_v4_json_docs_refresh_ignores_fields_without_names():
     ]
 
 
+def test_v4_json_docs_refresh_handles_missing_method_and_bad_fields():
+    snapshot = {
+        "contracts": [
+            {
+                "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetEventsLog",
+                "param_fields": None,
+            }
+        ]
+    }
+
+    with patch.object(
+        audit_v4_json_docs,
+        "_fetch_text",
+        return_value="GetEventsLog TimestampFrom",
+    ):
+        refreshed = audit_v4_json_docs.refresh_from_online(snapshot, timeout=1)
+
+    assert refreshed["contracts"][0]["online_check"]["method_found"] is False
+    assert refreshed["contracts"][0]["online_check"]["fields_found"] == []
+
+
 def test_v4_json_docs_snapshot_covers_supported_methods():
     grouped = audit_v4_json_docs.contracts_by_method(_snapshot())
 

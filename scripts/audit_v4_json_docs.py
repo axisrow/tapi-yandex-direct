@@ -168,16 +168,20 @@ def _fetch_text(url: str, timeout: int) -> str:
 def refresh_from_online(snapshot: dict[str, Any], *, timeout: int) -> dict[str, Any]:
     refreshed = json.loads(json.dumps(snapshot))
     for contract in refreshed.get("contracts", []):
-        source_url = contract["source_url"]
+        source_url = contract.get("source_url")
         if not str(source_url).startswith(OFFICIAL_V4_DOCS_PREFIX):
             raise ValueError(f"Refusing to fetch unexpected URL: {source_url!r}")
         html = _fetch_text(source_url, timeout)
+        method = contract.get("method")
+        param_fields = contract.get("param_fields", [])
+        if not isinstance(param_fields, list):
+            param_fields = []
         contract["online_check"] = {
             "fetched_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-            "method_found": contract["method"] in html,
+            "method_found": isinstance(method, str) and method in html,
             "fields_found": [
                 field["name"]
-                for field in contract.get("param_fields", [])
+                for field in param_fields
                 if (
                     isinstance(field, dict)
                     and isinstance(field.get("name"), str)
