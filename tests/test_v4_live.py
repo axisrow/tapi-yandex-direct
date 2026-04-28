@@ -79,14 +79,31 @@ def test_v4live_default_locale_is_en():
 
 
 @responses.activate
-def test_v4live_login_injected_into_param_dict():
+def test_v4live_login_sent_as_header_without_mutating_param_dict():
     responses.add(responses.POST, V4_LIVE_URL, json={"data": []}, status=200)
     client = _make_client(login="agent@yandex")
     client.v4live().post(
-        data={"method": "GetEventsLog", "param": {"TimestampFrom": 1714200000}}
+        data={"method": "GetStatGoals", "param": {"CampaignIDS": [123]}}
     )
+    sent = responses.calls[-1].request
     body = _last_request_body()
-    assert body["param"]["login"] == "agent@yandex"
+    assert sent.headers["Client-Login"] == "agent@yandex"
+    assert body["param"] == {"CampaignIDS": [123]}
+    assert "login" not in body["param"]
+
+
+@responses.activate
+def test_v4live_login_header_preserves_account_management_param():
+    responses.add(responses.POST, V4_LIVE_URL, json={"data": []}, status=200)
+    client = _make_client(login="agent@yandex")
+    client.v4live().post(
+        data={"method": "AccountManagement", "param": {"Action": "Get"}}
+    )
+    sent = responses.calls[-1].request
+    body = _last_request_body()
+    assert sent.headers["Client-Login"] == "agent@yandex"
+    assert body["param"] == {"Action": "Get"}
+    assert "login" not in body["param"]
 
 
 @responses.activate
@@ -95,6 +112,7 @@ def test_v4live_login_not_injected_when_param_is_list():
     client = _make_client(login="agent@yandex")
     client.v4live().post(data={"method": "GetClientsUnits", "param": ["sub"]})
     # param remains a list; login does not get pushed in
+    assert responses.calls[-1].request.headers["Client-Login"] == "agent@yandex"
     assert _last_request_body()["param"] == ["sub"]
 
 
