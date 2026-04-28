@@ -27,4 +27,11 @@ jobs:
         run: pip install -e . responses pytest
 
       - name: Run tests
-        run: pytest tests/tests.py -v
+        run: >
+          pytest
+          tests/tests.py
+          tests/test_resource_mapping.py
+          tests/test_v4_live.py
+          tests/test_v4_json_docs.py
+          tests/test_audit_wsdl.py
+          -v

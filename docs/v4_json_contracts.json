@@ -1,0 +1,355 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "generated_at": "2026-04-28",
+    "source": "Manual snapshot of official Yandex Direct API v4 JSON documentation. WSDL is used only for operation availability.",
+    "json_protocol_url": "https://yandex.com/dev/direct/doc/dg-v4/en/concepts/JSON",
+    "versions_url": "https://yandex.com/dev/direct/doc/dg-v4/en/concepts/Versions"
+  },
+  "contracts": [
+    {
+      "method": "AccountManagement",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/AccountManagement",
+      "request": {"method": "AccountManagement"},
+      "param_shape": "object",
+      "param_fields": [{"name": "Action", "required": true}],
+      "required_fields": ["Action"],
+      "notes": ["Shared-account action object. Client-Login stays in the HTTP header."]
+    },
+    {
+      "method": "AdImageAssociation",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/AdImageAssociation",
+      "request": {"method": "AdImageAssociation"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Supported because WSDL/matrix classify it as no-v5 analogue; JSON param shape has not been manually audited yet."]
+    },
+    {
+      "method": "CheckPayment",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/CheckPayment",
+      "request": {"method": "CheckPayment"},
+      "param_shape": "object",
+      "param_fields": [
+        {"name": "OperationNum", "required": true},
+        {"name": "CustomTransactionID", "required": true}
+      ],
+      "required_fields": ["OperationNum", "CustomTransactionID"],
+      "notes": ["Finance method; live probing requires a real transaction identifier."]
+    },
+    {
+      "method": "CreateInvoice",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/CreateInvoice",
+      "request": {"method": "CreateInvoice"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Finance method; schema is intentionally left to the official page until manually audited."]
+    },
+    {
+      "method": "CreateNewForecast",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/CreateNewForecast",
+      "request": {"method": "CreateNewForecast"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Forecast report request; not normalized by the adapter."]
+    },
+    {
+      "method": "CreateNewWordstatReport",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/CreateNewWordstatReport",
+      "request": {"method": "CreateNewWordstatReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Wordstat report request; not normalized by the adapter."]
+    },
+    {
+      "method": "DeleteForecastReport",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/DeleteForecastReport",
+      "request": {"method": "DeleteForecastReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Delete operation; no adapter-side param normalization."]
+    },
+    {
+      "method": "DeleteOfflineReport",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/DeleteOfflineReport",
+      "request": {"method": "DeleteOfflineReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Live-only offline report delete operation."]
+    },
+    {
+      "method": "DeleteReport",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/DeleteReport",
+      "request": {"method": "DeleteReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Legacy report delete operation with no v5 analogue."]
+    },
+    {
+      "method": "DeleteWordstatReport",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/DeleteWordstatReport",
+      "request": {"method": "DeleteWordstatReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Delete operation; no adapter-side param normalization."]
+    },
+    {
+      "method": "EnableSharedAccount",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/EnableSharedAccount",
+      "request": {"method": "EnableSharedAccount"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Shared-account write operation."]
+    },
+    {
+      "method": "GetAvailableVersions",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetAvailableVersions",
+      "request": {"method": "GetAvailableVersions"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["API metadata method."]
+    },
+    {
+      "method": "GetBannersTags",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetBannersTags",
+      "request": {"method": "GetBannersTags"},
+      "param_shape": "object",
+      "param_fields": [{"name": "BannerIDS", "required": true}],
+      "required_fields": ["BannerIDS"],
+      "notes": ["Field name uses capital IDS."]
+    },
+    {
+      "method": "GetCampaignsTags",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetCampaignsTags",
+      "request": {"method": "GetCampaignsTags"},
+      "param_shape": "object",
+      "param_fields": [{"name": "CampaignIDS", "required": true}],
+      "required_fields": ["CampaignIDS"],
+      "notes": ["Field name uses capital IDS."]
+    },
+    {
+      "method": "GetClientsUnits",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetClientsUnits",
+      "request": {"method": "GetClientsUnits"},
+      "param_shape": "array",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["param is a list of client logins."]
+    },
+    {
+      "method": "GetCreditLimits",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetCreditLimits",
+      "request": {"method": "GetCreditLimits"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Finance method; requires a financial token."]
+    },
+    {
+      "method": "GetEventsLog",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetEventsLog",
+      "request": {"method": "GetEventsLog"},
+      "param_shape": "object",
+      "param_fields": [
+        {"name": "TimestampFrom", "required": true},
+        {"name": "Currency", "required": true},
+        {"name": "Logins", "required": false},
+        {"name": "Filter", "required": false},
+        {"name": "Filter.CampaignIDS", "required": false},
+        {"name": "Filter.BannerIDS", "required": false},
+        {"name": "Filter.Phrases", "required": false},
+        {"name": "Filter.EventTypes", "required": false},
+        {"name": "Limit", "required": false},
+        {"name": "Offset", "required": false}
+      ],
+      "required_fields": ["TimestampFrom", "Currency"],
+      "notes": ["Live JSON docs require TimestampFrom and Currency; Logins, Filter, Limit, and Offset are optional."]
+    },
+    {
+      "method": "GetForecast",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetForecast",
+      "request": {"method": "GetForecast"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Forecast retrieval request."]
+    },
+    {
+      "method": "GetForecastList",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetForecastList",
+      "request": {"method": "GetForecastList"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Forecast report list request."]
+    },
+    {
+      "method": "GetKeywordsSuggestion",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetKeywordsSuggestion",
+      "request": {"method": "GetKeywordsSuggestion"},
+      "param_shape": "object",
+      "param_fields": [{"name": "Keywords", "required": true}],
+      "required_fields": ["Keywords"],
+      "notes": ["Phrase suggestions use a Keywords array."]
+    },
+    {
+      "method": "GetRetargetingGoals",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetRetargetingGoals",
+      "request": {"method": "GetRetargetingGoals"},
+      "param_shape": "object",
+      "param_fields": [{"name": "Logins", "required": true}],
+      "required_fields": ["Logins"],
+      "notes": ["Live JSON docs use Logins, not Login and not CampaignIDS."]
+    },
+    {
+      "method": "GetStatGoals",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetStatGoals",
+      "request": {"method": "GetStatGoals"},
+      "param_shape": "object",
+      "param_fields": [{"name": "CampaignID", "required": true}],
+      "required_fields": ["CampaignID"],
+      "notes": ["Reference v4 docs use singular CampaignID."]
+    },
+    {
+      "method": "GetStatGoals",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/GetStatGoals",
+      "request": {"method": "GetStatGoals"},
+      "param_shape": "object",
+      "param_fields": [{"name": "CampaignIDS", "required": true}],
+      "required_fields": ["CampaignIDS"],
+      "notes": ["Live JSON docs use CampaignIDS with capital IDS."]
+    },
+    {
+      "method": "GetVersion",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetVersion",
+      "request": {"method": "GetVersion"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["API metadata method."]
+    },
+    {
+      "method": "GetWordstatReport",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetWordstatReport",
+      "request": {"method": "GetWordstatReport"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Wordstat report retrieval request."]
+    },
+    {
+      "method": "GetWordstatReportList",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/GetWordstatReportList",
+      "request": {"method": "GetWordstatReportList"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Wordstat report list request."]
+    },
+    {
+      "method": "PayCampaigns",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/PayCampaigns",
+      "request": {"method": "PayCampaigns"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Finance method; requires a financial token."]
+    },
+    {
+      "method": "PayCampaignsByCard",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/PayCampaignsByCard",
+      "request": {"method": "PayCampaignsByCard"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Finance method; requires a financial token."]
+    },
+    {
+      "method": "PingAPI",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/PingAPI",
+      "request": {"method": "PingAPI"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["API metadata method."]
+    },
+    {
+      "method": "PingAPI_X",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/PingAPI_X",
+      "request": {"method": "PingAPI_X"},
+      "param_shape": "optional-empty",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["API metadata method."]
+    },
+    {
+      "method": "TransferMoney",
+      "variant": "reference",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/reference/TransferMoney",
+      "request": {"method": "TransferMoney"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Finance method; requires a financial token."]
+    },
+    {
+      "method": "UpdateBannersTags",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/UpdateBannersTags",
+      "request": {"method": "UpdateBannersTags"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Live-only tag update operation."]
+    },
+    {
+      "method": "UpdateCampaignsTags",
+      "variant": "live",
+      "source_url": "https://yandex.com/dev/direct/doc/dg-v4/en/live/UpdateCampaignsTags",
+      "request": {"method": "UpdateCampaignsTags"},
+      "param_shape": "unknown",
+      "param_fields": [],
+      "required_fields": [],
+      "notes": ["Live-only tag update operation."]
+    }
+  ]
+}

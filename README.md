@@ -471,8 +471,9 @@ client = YandexDirectV4Live(
 ### Request shape
 
 v4 Live is RPC-style: there is **one endpoint** and the operation name lives in
-the JSON body. The client injects the OAuth token, locale, and login (for
-`param: dict` payloads only) automatically — pass `method` and `param`:
+the JSON body. The client injects the OAuth token, locale, and `Client-Login`
+header automatically. It does not rewrite method-specific `param` payloads —
+pass the exact `method` and `param` shape from the v4 JSON docs:
 
 ```python
 # Read-only: rate-limit units balance for the account
@@ -483,10 +484,10 @@ result = client.v4live().post(data={
 result.data        # → {"data": [{"UnitsRest": 32000, "Login": "..."}]}
 result().extract() # → [{"UnitsRest": 32000, "Login": "..."}]
 
-# Method with dict params (login auto-injected from client config)
+# Method with dict params
 result = client.v4live().post(data={
     "method": "GetEventsLog",
-    "param": {"TimestampFrom": 1714200000, "Limit": 100},
+    "param": {"TimestampFrom": "2026-04-28T00:00:00Z", "Currency": "RUB", "Limit": 100},
 })
 ```
 
@@ -570,23 +571,25 @@ the verified live-API behaviour of every supported method.
 
 ### Common request schemas
 
-The full call schemas come from
-<https://yandex.com/dev/direct/doc/dg-v4/en/live/concepts>. A few that trip
-up newcomers (verified live):
+The full call schemas come from the local
+`docs/v4_json_contracts.json` snapshot of official v4 JSON docs. Refresh that
+snapshot manually with `python3 scripts/audit_v4_json_docs.py --refresh-from-online --output docs/v4_json_contracts.json`.
+A few fields that trip up newcomers:
 
 | Method | Required `param` shape |
 |---|---|
 | `GetClientsUnits` | list of logins, e.g. `["my-login"]` |
-| `GetRetargetingGoals` | `{"Login": "my-login"}` |
+| `GetRetargetingGoals` (Live) | `{"Logins": ["my-login", ...]}` |
+| `GetStatGoals` (v4 reference) | `{"CampaignID": <int>}` |
 | `GetStatGoals` | `{"CampaignIDS": [<int>, ...]}` (capital S) |
 | `GetCampaignsTags` | `{"CampaignIDS": [<int>, ...]}` |
 | `GetBannersTags` | `{"BannerIDS": [<int>, ...]}` |
 | `GetEventsLog` | `{"TimestampFrom": "<ISO 8601>", "Currency": "RUB"\|"USD"\|...}` |
 | `GetKeywordsSuggestion` | `{"Keywords": ["phrase 1", ...]}` |
 
-`tests/test_v4_live_integration.py` exercises each of these against the real
-API as living documentation — run with `pytest -m live` and a token in
-`YANDEX_DIRECT_TOKEN`.
+`tests/test_v4_json_docs.py` is the offline contract audit. Optional live
+probes in `tests/test_v4_live_integration.py` only confirm API behavior — run
+with `pytest -m live` and a token in `YANDEX_DIRECT_TOKEN`.
 
 
 ## Features
