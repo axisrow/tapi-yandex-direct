@@ -18,6 +18,7 @@ from tapi2 import JSONAdapterMixin, TapiAdapter, generate_wrapper_from_adapter
 from tapi2.exceptions import ClientError, ResponseProcessException, TapiException
 
 from tapi_yandex_direct import exceptions
+from tapi_yandex_direct.endpoints import get_direct_api_root
 from tapi_yandex_direct.v4.resource_mapping import (
     RESOURCE_MAPPING_V4_LIVE,
     SUPPORTED_V4_METHODS,
@@ -33,9 +34,7 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
         super().__init__(*args, **kwargs)
 
     def get_api_root(self, api_params: dict, resource_name: str) -> str:
-        if api_params.get("is_sandbox"):
-            return "https://api-sandbox.direct.yandex.ru/"
-        return "https://api.direct.yandex.ru/"
+        return get_direct_api_root(api_params)
 
     def get_request_kwargs(self, api_params: dict, *args, **kwargs) -> dict:
         params = super().get_request_kwargs(api_params, *args, **kwargs)
@@ -43,11 +42,14 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
         token = api_params.get("access_token")
         login = api_params.get("login")
         language = api_params.get("language", "en")
+        finance_token = api_params.get("finance_token")
+        operation_num = api_params.get("operation_num")
 
-        # Enrich the JSON body with token / locale. format_data_to_request does
-        # not see api_params, so we do this here, after super() has already
-        # serialised the user data. Agency/client selection is transport-level
-        # (Client-Login header); method params must stay schema-shaped.
+        # Enrich the JSON body with top-level v4 Live fields.
+        # format_data_to_request does not see api_params, so we do this here,
+        # after super() has already serialised the user data. Agency/client
+        # selection is transport-level (Client-Login header); method params
+        # must stay schema-shaped.
         raw = params.get("data")
         if raw:
             if isinstance(raw, (bytes, bytearray)):
@@ -67,6 +69,10 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
                 body.setdefault("token", token)
             if language:
                 body.setdefault("locale", language)
+            if finance_token:
+                body.setdefault("finance_token", finance_token)
+            if operation_num is not None:
+                body.setdefault("operation_num", operation_num)
 
             params["data"] = orjson.dumps(body)
 
@@ -100,7 +106,9 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
                 data = None
         return data
 
-    def process_response(self, response: Response, request_kwargs: dict, **kwargs) -> dict:
+    def process_response(
+        self, response: Response, request_kwargs: dict, **kwargs
+    ) -> dict:
         # Mirror the v5 behaviour: turn the serialised body back into a dict so
         # downstream hooks (extract, retry) can read it.
         if isinstance(request_kwargs.get("data"), (bytes, bytearray, str)):
@@ -168,9 +176,15 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
                 code = 0
 
         if code in (54, 55) and api_params.get("retry_if_exceeded_limit", True):
-            logger.warning("v4 Live limit exceeded (code=%s), retry in 10s", code)
-            time.sleep(10)
-            return True
+            # Bound the limit-exceeded retries with the same attempt budget as
+            # the server-error branch below.  Without this guard the loop is
+            # infinite (sleep 10s, retry, forever) whenever the API keeps
+            # returning code 54/55 — which hangs the caller indefinitely.
+            if repeat_number < api_params.get("retries_if_server_error", 5):
+                logger.warning("v4 Live limit exceeded (code=%s), retry in 10s", code)
+                time.sleep(10)
+                return True
+            return False
 
         if code in (52, 1000, 1001, 1002) or response.status_code == 500:
             if repeat_number < api_params.get("retries_if_server_error", 5):
@@ -180,8 +194,13 @@ class V4LiveClientAdapter(JSONAdapterMixin, TapiAdapter):
 
         return False
 
-    def extract(self, data, response: Optional[Response] = None,
-                request_kwargs: Optional[dict] = None, **kwargs):
+    def extract(
+        self,
+        data,
+        response: Optional[Response] = None,
+        request_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
         # v4 Live always nests payload under "data". For methods returning a
         # bare scalar (TransferMoney → 1), the scalar comes through unchanged.
         # response / request_kwargs are accepted but unused — they are kept
