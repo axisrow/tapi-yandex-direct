@@ -349,18 +349,21 @@ def _v5_error(code):
     }
 
 
+@pytest.mark.parametrize("code", [506, 56, 9000])
 @responses.activate
-def test_v5_persistent_limit_506_stops_and_raises(monkeypatch):
+def test_v5_persistent_limit_stops_and_raises(monkeypatch, code):
     # Regression guard for issue #23: a persistent limit code must NOT loop
     # forever. With retries_if_exceeded_limit=2 the adapter makes exactly
-    # 2 HTTP calls then raises, instead of hanging.
+    # 2 HTTP calls then raises, instead of hanging. Codes 506/56/9000 each go
+    # through their own elif branch but share the retries_if_exceeded_limit
+    # budget, so all three are exercised.
     monkeypatch.setattr(adapter_mod.time, "sleep", lambda _s: None)
 
     for _ in range(5):
         responses.add(
             responses.POST,
             "https://api.direct.yandex.com/json/v5/clients",
-            json=_v5_error(506),
+            json=_v5_error(code),
             status=200,
         )
 

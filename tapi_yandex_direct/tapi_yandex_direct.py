@@ -273,6 +273,7 @@ class YandexDirectClientAdapter(JSONAdapterMixin, TapiAdapter):
                 logger.warning("API requests exceeded, re-request after 10 seconds")
                 time.sleep(10)
                 return True
+            logger.error("API requests exceeded, retries exhausted")
             return False
 
         elif error_code == 56 and api_params.get("retry_if_exceeded_limit", True):
@@ -282,6 +283,7 @@ class YandexDirectClientAdapter(JSONAdapterMixin, TapiAdapter):
                 )
                 time.sleep(10)
                 return True
+            logger.error("Method request limit exceeded, retries exhausted")
             return False
 
         elif error_code == 9000 and api_params.get("retry_if_exceeded_limit", True):
@@ -291,6 +293,7 @@ class YandexDirectClientAdapter(JSONAdapterMixin, TapiAdapter):
                 )
                 time.sleep(10)
                 return True
+            logger.error("Max number of reports limit exceeded, retries exhausted")
             return False
 
         elif error_code in (52, 1000, 1001, 1002) or status_code == 500:
