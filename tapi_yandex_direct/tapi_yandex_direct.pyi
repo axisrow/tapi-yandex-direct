@@ -101,7 +101,9 @@ class YandexDirect:
         login: str = None,
         is_sandbox: bool = False,
         retry_if_not_enough_units: bool = False,
+        retries_if_not_enough_units: int = 5,
         retry_if_exceeded_limit: bool = True,
+        retries_if_exceeded_limit: int = 5,
         retries_if_server_error: int = 5,
         language: str = None,
         processing_mode: str = "offline",
@@ -119,7 +121,9 @@ class YandexDirect:
         :param login: If you are making inquiries from an agent account, you must be sure to specify the account login.
         :param is_sandbox: Enable sandbox.
         :param retry_if_not_enough_units: Repeat request when units run out
+        :param retries_if_not_enough_units: Number of retries when units run out.
         :param retry_if_exceeded_limit: Repeat the request if the limits on the number of reports or requests are exceeded.
+        :param retries_if_exceeded_limit: Number of retries when report/request limits are exceeded.
         :param retries_if_server_error: Number of retries when server errors occur.
         :param language: The language in which the data for directories and errors will be returned.
 

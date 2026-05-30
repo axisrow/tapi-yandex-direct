@@ -1,8 +1,11 @@
 import logging
 
+import pytest
 import responses
 
+import tapi_yandex_direct.tapi_yandex_direct as adapter_mod
 from tapi_yandex_direct import YandexDirect
+from tapi_yandex_direct import exceptions as exc
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -329,3 +332,121 @@ def test_agencyclients_add_passport_organization_member():
     )
     assert result.data == {"result": {"AddResults": [{"Login": "member-login"}]}}
     assert result().extract() == [{"Login": "member-login"}]
+
+
+def _v5_error(code):
+    # v5 errors nest under "error". The adapter reads error["code"]; the
+    # exception constructor reads error_code/request_id/error_string/
+    # error_detail — both sets of keys must be present.
+    return {
+        "error": {
+            "code": code,
+            "error_code": code,
+            "request_id": "test-request-id",
+            "error_string": "Limit exceeded",
+            "error_detail": "test detail",
+        }
+    }
+
+
+@responses.activate
+def test_v5_persistent_limit_506_stops_and_raises(monkeypatch):
+    # Regression guard for issue #23: a persistent limit code must NOT loop
+    # forever. With retries_if_exceeded_limit=2 the adapter makes exactly
+    # 2 HTTP calls then raises, instead of hanging.
+    monkeypatch.setattr(adapter_mod.time, "sleep", lambda _s: None)
+
+    for _ in range(5):
+        responses.add(
+            responses.POST,
+            "https://api.direct.yandex.com/json/v5/clients",
+            json=_v5_error(506),
+            status=200,
+        )
+
+    local_client = YandexDirect(
+        access_token="",
+        retry_if_exceeded_limit=True,
+        retries_if_exceeded_limit=2,
+        retries_if_server_error=5,
+    )
+    with pytest.raises(exc.YandexDirectRequestsLimitError):
+        local_client.clients().post(
+            data={"method": "get", "params": {"FieldNames": ["ClientId"]}}
+        )
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_v5_limit_506_retries_then_succeeds(monkeypatch):
+    monkeypatch.setattr(adapter_mod.time, "sleep", lambda _s: None)
+
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/clients",
+        json=_v5_error(506),
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/clients",
+        json={"result": {"Clients": []}},
+        status=200,
+    )
+
+    local_client = YandexDirect(
+        access_token="",
+        retry_if_exceeded_limit=True,
+        retries_if_exceeded_limit=5,
+        retries_if_server_error=5,
+    )
+    result = local_client.clients().post(
+        data={"method": "get", "params": {"FieldNames": ["ClientId"]}}
+    )
+    assert result().extract() == []
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_v5_limit_506_raises_when_retry_disabled():
+    # Module-level `client` has retry_if_exceeded_limit=False, so a limit code
+    # is raised immediately with no retry.
+    responses.add(
+        responses.POST,
+        "https://api.direct.yandex.com/json/v5/clients",
+        json=_v5_error(506),
+        status=200,
+    )
+    with pytest.raises(exc.YandexDirectRequestsLimitError):
+        client.clients().post(
+            data={"method": "get", "params": {"FieldNames": ["ClientId"]}}
+        )
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_v5_persistent_units_152_stops_and_raises(monkeypatch):
+    # Regression guard for issue #23: code 152 ("not enough units") is opt-in
+    # (retry_if_not_enough_units) and now bounded by its own
+    # retries_if_not_enough_units budget — it must stop, not loop forever.
+    monkeypatch.setattr(adapter_mod.time, "sleep", lambda _s: None)
+
+    for _ in range(5):
+        responses.add(
+            responses.POST,
+            "https://api.direct.yandex.com/json/v5/clients",
+            json=_v5_error(152),
+            status=200,
+        )
+
+    local_client = YandexDirect(
+        access_token="",
+        retry_if_not_enough_units=True,
+        retries_if_not_enough_units=2,
+        retries_if_server_error=5,
+    )
+    with pytest.raises(exc.YandexDirectNotEnoughUnitsError):
+        local_client.clients().post(
+            data={"method": "get", "params": {"FieldNames": ["ClientId"]}}
+        )
+    assert len(responses.calls) == 2
