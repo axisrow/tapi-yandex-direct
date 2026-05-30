@@ -80,11 +80,15 @@ client = YandexDirect(
     is_sandbox=False,
     # Repeat request when units run out
     retry_if_not_enough_units=False,
+    # Maximum total request attempts when units run out (includes the initial attempt).
+    retries_if_not_enough_units=5,
     # The language in which the data for directories and errors will be returned.
     language="ru",
     # Repeat the request if the limits on the number of reports or requests are exceeded.
     retry_if_exceeded_limit=True,
-    # Number of retries when server errors occur.
+    # Maximum total request attempts when report/request limits are exceeded (includes the initial attempt).
+    retries_if_exceeded_limit=5,
+    # Maximum total request attempts when server errors occur (includes the initial attempt).
     retries_if_server_error=5
 )
 ```
@@ -341,11 +345,15 @@ client = YandexDirect(
     is_sandbox=False,
     # Repeat request when units run out
     retry_if_not_enough_units=False,
+    # Maximum total request attempts when units run out (includes the initial attempt).
+    retries_if_not_enough_units=5,
     # The language in which the data for directories and errors will be returned.
     language="ru",
     # Repeat the request if the limits on the number of reports or requests are exceeded.
     retry_if_exceeded_limit=True,
-    # Number of retries when server errors occur.
+    # Maximum total request attempts when report/request limits are exceeded (includes the initial attempt).
+    retries_if_exceeded_limit=5,
+    # Maximum total request attempts when server errors occur (includes the initial attempt).
     retries_if_server_error=5,
 
     # Report resource parameters:
