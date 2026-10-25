@@ -15,6 +15,12 @@ from tapi_yandex_direct.resource_mapping import RESOURCE_MAPPING_V5
 
 logger = logging.getLogger(__name__)
 
+# Called with the raw requests.Response of every successful (non-error) API
+# call. The client keeps successful-response headers internal, so direct_cli
+# sets this to surface optional response data such as API Units (direct-cli
+# issue #925). Mirrored in direct_cli/_vendor (#634 practice).
+SUCCESS_RESPONSE_HOOK = None
+
 RESULT_DICTIONARY_KEYS_OF_API_METHODS = {
     "add": "AddResults",
     "update": "UpdateResults",
@@ -184,6 +190,9 @@ class YandexDirectClientAdapter(JSONAdapterMixin, TapiAdapter):
             kwargs["store"].pop("report_data_start_line", None)
             kwargs["store"].pop("report_header_offset", None)
             kwargs["store"].pop("skip_report_summary", None)
+
+        if SUCCESS_RESPONSE_HOOK is not None:
+            SUCCESS_RESPONSE_HOOK(response)
 
         return data
 
